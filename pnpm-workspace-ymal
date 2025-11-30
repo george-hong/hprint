@@ -1,0 +1,5 @@
+packages: 
+  # 定义子包目录（可自定义，常用 packages/* 或 apps/*）
+  - 'packages/*'       # 所有通用子包（如工具库、组件库）
+  - 'apps/*'           # 应用类子包（如前端项目、服务端项目）
+  - '!**/node_modules' # 排除 node_modules 目录（避免识别错误）

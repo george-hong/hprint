@@ -1,0 +1,30 @@
+{
+  "name": "fabric-print",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "pnpm clean && pnpm -r --filter \"@hprint/*\" build",
+    "build:core": "pnpm --filter @hprint/core build",
+    "build:plugins": "pnpm --filter @hprint/plugins build",
+    "build:print": "pnpm --filter @hprint/print build",
+    "clean": "pnpm -r --filter \"@hprint/*\" clean",
+    "type-check": "pnpm -r --filter \"@hprint/*\" type-check",
+    "watch": "pnpm --filter @hprint/print watch",
+    "dev": "pnpm watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  
+  "license": "ISC",
+  "packageManager": "pnpm@10.20.0",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.4",
+    "vite-plugin-dts": "^4.5.4"
+  }
+}

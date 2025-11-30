@@ -1,0 +1,35 @@
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+import dts from 'vite-plugin-dts';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+export default defineConfig({
+  plugins: [
+    dts({
+      outDir: 'dist',
+      include: ['**/*.ts'],
+    }),
+  ],
+  build: {
+    lib: {
+      entry: resolve(__dirname, 'src/index.ts'),
+      name: '@hprint/print',
+      fileName: 'index',
+      formats: ['es', 'cjs'],
+    },
+    rollupOptions: {
+      external: [
+        '@hprint/core',
+        '@hprint/plugins',
+      ],
+      output: {
+        globals: {
+
+        },
+      },
+    },
+  },
+});
+
