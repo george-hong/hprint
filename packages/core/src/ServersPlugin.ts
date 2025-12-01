@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { selectFiles, clipboardText, downFile } from './utils/utils';
 import { fabric, StaticCanvas } from 'fabric';
 import type { IEditor, IPluginTempl } from '@hprint/core';
-import { SelectEvent, SelectMode } from './eventType';
+import { SelectEvent, SelectMode } from '../../plugins/src/types/eventType';
 
 type IPlugin = Pick<
     ServersPlugin,

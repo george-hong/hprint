@@ -32,43 +32,77 @@ importers:
       '@vueuse/core':
         specifier: ~10.11.1
         version: 10.11.1(vue@3.5.25(typescript@5.9.3))
-      axios:
-        specifier: ^1.13.2
-        version: 1.13.2
       events:
         specifier: ^3.3.0
         version: 3.3.0
       fabric:
         specifier: ~5.3.0
         version: 5.3.0
-      fontfaceobserver:
-        specifier: ~2.1.0
-        version: 2.1.0
       hotkeys-js:
         specifier: ~3.8.9
         version: 3.8.9
+      tapable:
+        specifier: ~2.3.0
+        version: 2.3.0
+      uuid:
+        specifier: ~8.3.2
+        version: 8.3.2
+    devDependencies:
+      '@types/fabric':
+        specifier: ~5.3.10
+        version: 5.3.10
+      '@types/fontfaceobserver':
+        specifier: ~2.1.3
+        version: 2.1.3
+      '@types/qs':
+        specifier: ^6.14.0
+        version: 6.14.0
+      rimraf:
+        specifier: ^6.1.2
+        version: 6.1.2
+      vite:
+        specifier: ^7.2.4
+        version: 7.2.4(@types/node@24.10.1)
+      vite-plugin-dts:
+        specifier: ^4.5.4
+        version: 4.5.4(@types/node@24.10.1)(rollup@4.53.3)(typescript@5.9.3)(vite@7.2.4(@types/node@24.10.1))
+
+  packages/plugins:
+    dependencies:
+      '@hprint/core':
+        specifier: workspace:*
+        version: link:../core
+      '@hprint/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@webtoon/psd':
+        specifier: ^0.4.0
+        version: 0.4.0
+      axios:
+        specifier: ^1.13.2
+        version: 1.13.2
+      fontfaceobserver:
+        specifier: ~2.1.0
+        version: 2.1.0
       jsbarcode:
-        specifier: ^3.12.1
+        specifier: ~3.12.1
         version: 3.12.1
       lodash-es:
         specifier: ^4.17.21
         version: 4.17.21
+      qr-code-styling:
+        specifier: ^1.9.2
+        version: 1.9.2
       qs:
         specifier: ~6.12.3
         version: 6.12.3
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.1
-      tapable:
-        specifier: ~2.3.0
-        version: 2.3.0
       uuid:
-        specifier: '8.3'
+        specifier: ~8.3.2
         version: 8.3.2
     devDependencies:
-      '@types/fabric':
-        specifier: ~5.3.10
-        version: 5.3.10
       '@types/fontfaceobserver':
         specifier: ~2.1.3
         version: 2.1.3
@@ -81,18 +115,6 @@ importers:
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
-      rimraf:
-        specifier: ^6.1.2
-        version: 6.1.2
-      vite:
-        specifier: ^7.2.4
-        version: 7.2.4(@types/node@24.10.1)
-      vite-plugin-dts:
-        specifier: ^4.5.4
-        version: 4.5.4(@types/node@24.10.1)(rollup@4.53.3)(typescript@5.9.3)(vite@7.2.4(@types/node@24.10.1))
-
-  packages/plugins:
-    devDependencies:
       rimraf:
         specifier: ^6.1.2
         version: 6.1.2
@@ -123,6 +145,19 @@ importers:
         version: 4.5.4(@types/node@24.10.1)(rollup@4.53.3)(typescript@5.9.3)(vite@7.2.4(@types/node@24.10.1))
 
   packages/shared:
+    dependencies:
+      '@types/uuid':
+        specifier: ~8.3.4
+        version: 8.3.4
+      '@vueuse/core':
+        specifier: ~10.11.1
+        version: 10.11.1(vue@3.5.25(typescript@5.9.3))
+      fabric:
+        specifier: ~5.3.0
+        version: 5.3.0
+      uuid:
+        specifier: ~8.3.2
+        version: 8.3.2
     devDependencies:
       rimraf:
         specifier: ^6.1.2
@@ -528,6 +563,9 @@ packages:
   '@types/qs@6.14.0':
     resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
 
+  '@types/uuid@8.3.4':
+    resolution: {integrity: sha512-c/I8ZRb51j+pYGAu5CrFMRxqZ2ke4y2grEBO5AUjgSkSk+qT2Ea+OdWElz/OiMf5MNpn2b17kuVBwZLQJXzihw==}
+
   '@types/uuid@9.0.8':
     resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
 
@@ -591,6 +629,9 @@ packages:
 
   '@vueuse/shared@10.11.1':
     resolution: {integrity: sha512-LHpC8711VFZlDaYUXEBbFBCQ7GS3dVU9mjOhhMhXP6txTV4EhYQg/KGnQuvt/sPAtoUKq7VVUnL6mVtFoL42sA==}
+
+  '@webtoon/psd@0.4.0':
+    resolution: {integrity: sha512-ztriE8oFOamRrV9opBURDy+JMiyhur2//vOXsC5CgdnYCB0L1Lnaag4NzP8N+NFCj7uNz9JRYtPmAbQMSDLIsQ==}
 
   abab@2.0.6:
     resolution: {integrity: sha512-j2afSsaIENvHZN2B8GOpF566vZ5WVk5opAiMTvWgaQT8DkbOqsTfvNAvHoRGU2zzP8cPoqys+xHTRDWW8L+/BA==}
@@ -1196,6 +1237,13 @@ packages:
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
+
+  qr-code-styling@1.9.2:
+    resolution: {integrity: sha512-RgJaZJ1/RrXJ6N0j7a+pdw3zMBmzZU4VN2dtAZf8ZggCfRB5stEQ3IoDNGaNhYY3nnZKYlYSLl5YkfWN5dPutg==}
+    engines: {node: '>=18.18.0'}
+
+  qrcode-generator@1.5.2:
+    resolution: {integrity: sha512-pItrW0Z9HnDBnFmgiNrY1uxRdri32Uh9EjNYLPVC2zZ3ZRIIEqBoDgm4DkvDwNNDHTK7FNkmr8zAa77BYc9xNw==}
 
   qs@6.12.3:
     resolution: {integrity: sha512-AWJm14H1vVaO/iNZ4/hO+HyaTehuy9nRqVdkTqlJt0HWvBiBIEXFmb4C0DGeYo3Xes9rrEW+TxHsaigCbN5ICQ==}
@@ -1834,6 +1882,8 @@ snapshots:
 
   '@types/qs@6.14.0': {}
 
+  '@types/uuid@8.3.4': {}
+
   '@types/uuid@9.0.8': {}
 
   '@types/web-bluetooth@0.0.20': {}
@@ -1940,6 +1990,8 @@ snapshots:
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
+
+  '@webtoon/psd@0.4.0': {}
 
   abab@2.0.6:
     optional: true
@@ -2607,6 +2659,12 @@ snapshots:
     optional: true
 
   punycode@2.3.1: {}
+
+  qr-code-styling@1.9.2:
+    dependencies:
+      qrcode-generator: 1.5.2
+
+  qrcode-generator@1.5.2: {}
 
   qs@6.12.3:
     dependencies:

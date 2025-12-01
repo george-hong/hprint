@@ -20,7 +20,7 @@ export default defineConfig({
             formats: ['es', 'cjs'],
         },
         rollupOptions: {
-            external: [],
+            external: ['@hprint/core'],
             output: {
                 globals: {},
             },
