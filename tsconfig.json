@@ -24,6 +24,7 @@
     "references": [
         { "path": "./packages/core" },
         { "path": "./packages/hprint" },
-        { "path": "./packages/plugins" }
+        { "path": "./packages/plugins" },
+        { "path": "./packages/shared" }
     ]
 }

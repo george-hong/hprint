@@ -15,12 +15,12 @@ export default defineConfig({
     build: {
         lib: {
             entry: resolve(__dirname, 'src/index.ts'),
-            name: '@hprint/core',
+            name: '@hprint/shared',
             fileName: 'index',
             formats: ['es', 'cjs'],
         },
         rollupOptions: {
-            external: ['@hprint/shared'],
+            external: [],
             output: {
                 globals: {},
             },
