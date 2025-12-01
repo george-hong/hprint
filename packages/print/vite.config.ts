@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [
     dts({
       outDir: 'dist',
-      include: ['**/*.ts'],
+      include: ['src/**/*'],
     }),
   ],
   build: {
@@ -28,6 +28,7 @@ export default defineConfig({
         globals: {
 
         },
+        preserveModules: false,
       },
     },
   },
