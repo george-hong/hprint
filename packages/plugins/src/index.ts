@@ -1,3 +1,4 @@
+import { IPluginTempl } from '@hprint/core'
 // 导入所有插件
 import UnitPlugin from './plugins/UnitPlugin';
 import DringPlugin from './plugins/DringPlugin';
@@ -36,7 +37,7 @@ import AddBaseTypePlugin from './plugins/AddBaseTypePlugin';
 import PrintPlugin from './plugins/PrintPlugin';
 
 // 对象形式导出所有插件
-const pluginsObject = {
+const pluginsObject: { [key: string]: IPluginTempl } = {
     UnitPlugin,
     DringPlugin,
     AlignGuidLinePlugin,
@@ -75,7 +76,7 @@ const pluginsObject = {
 };
 
 // 数组形式导出所有插件
-const pluginsList = [
+const pluginsList: IPluginTempl[] = [
     UnitPlugin,
     DringPlugin,
     AlignGuidLinePlugin,

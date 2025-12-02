@@ -12,7 +12,7 @@
         "build:print": "pnpm --filter @hprint/print build",
         "clean": "pnpm -r --filter \"@hprint/*\" clean",
         "type-check": "pnpm -r --filter \"@hprint/*\" type-check",
-        "watch": "pnpm --filter @hprint/print watch",
+        "watch": "pnpm -r --parallel --filter \"@hprint/*\" watch",
         "dev": "pnpm watch",
         "test": "echo \"Error: no test specified\" && exit 1",
         "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",

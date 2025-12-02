@@ -16,6 +16,7 @@
         "build": "vite build",
         "clean": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\"",
         "type-check": "tsc --noEmit",
+        "watch": "vite build --watch",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "devDependencies": {

@@ -133,6 +133,9 @@ importers:
       '@hprint/plugins':
         specifier: workspace:*
         version: link:../plugins
+      '@hprint/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       rimraf:
         specifier: ^6.1.2
@@ -159,6 +162,9 @@ importers:
         specifier: ~8.3.2
         version: 8.3.2
     devDependencies:
+      '@types/fabric':
+        specifier: ~5.3.10
+        version: 5.3.10
       rimraf:
         specifier: ^6.1.2
         version: 6.1.2
