@@ -1,4 +1,5 @@
 import { IPluginTempl } from '@hprint/core'
+import { SelectEvent, SelectMode } from './types/eventType';
 // 导入所有插件
 import UnitPlugin from './plugins/UnitPlugin';
 import DringPlugin from './plugins/DringPlugin';
@@ -114,4 +115,4 @@ const pluginsList: IPluginTempl[] = [
     PrintPlugin,
 ];
 
-export { pluginsObject, pluginsList };
+export { pluginsObject, pluginsList, SelectEvent, SelectMode };

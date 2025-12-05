@@ -16,7 +16,7 @@ type IPlugin = Pick<
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface IEditor extends IPlugin {}
+    interface IEditor extends IPlugin { }
 }
 
 class WorkspacePlugin implements IPluginTempl {
