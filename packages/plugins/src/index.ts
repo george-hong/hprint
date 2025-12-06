@@ -36,6 +36,7 @@ import ResizePlugin from './plugins/ResizePlugin';
 import LockPlugin from './plugins/LockPlugin';
 import AddBaseTypePlugin from './plugins/AddBaseTypePlugin';
 import PrintPlugin from './plugins/PrintPlugin';
+import CreateElementPlugin from './plugins/CreateElementPlugin';
 
 // 对象形式导出所有插件
 const pluginsObject: { [key: string]: IPluginTempl } = {
@@ -74,6 +75,7 @@ const pluginsObject: { [key: string]: IPluginTempl } = {
     LockPlugin,
     AddBaseTypePlugin,
     PrintPlugin,
+    CreateElementPlugin,
 };
 
 // 数组形式导出所有插件
@@ -113,6 +115,7 @@ const pluginsList: IPluginTempl[] = [
     LockPlugin,
     AddBaseTypePlugin,
     PrintPlugin,
+    CreateElementPlugin,
 ];
 
 export { pluginsObject, pluginsList, SelectEvent, SelectMode };

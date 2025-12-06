@@ -1,4 +1,5 @@
 import { fabric } from '@hprint/core';
+import { LengthConvert } from '@hprint/shared';
 import { throttle } from 'lodash-es';
 import type { IEditor, IPluginTempl } from '@hprint/core';
 
@@ -28,6 +29,8 @@ class WorkspacePlugin implements IPluginTempl {
         'auto',
         'one',
         'setSize',
+        'setSizeMm',
+        'setSizeByUnit',
         'getWorkspase',
         'setWorkspaseBg',
         'setCenterFromObject',
@@ -162,6 +165,7 @@ class WorkspacePlugin implements IPluginTempl {
         this.resizeObserver.observe(this.workspaceEl);
     }
 
+    // px
     setSize(width: number, height: number) {
         this._initBackground();
         this.option.width = width;
@@ -178,6 +182,30 @@ class WorkspacePlugin implements IPluginTempl {
             this.workspace.height
         );
         this.auto();
+    }
+
+    // mm
+    setSizeMm(widthMm: number, heightMm: number, dpi?: number) {
+        const w = LengthConvert.mmToPx(widthMm, dpi, { direct: true });
+        const h = LengthConvert.mmToPx(heightMm, dpi, { direct: true });
+        this.setSize(w, h);
+        const ws = this.getWorkspase();
+        (ws as any)._originSize = {
+            ...(ws as any)._originSize,
+            mm: { width: widthMm, height: heightMm },
+        };
+    }
+
+    // dispatch by editor unit
+    setSizeByUnit(width: number, height: number, dpi?: number) {
+        const unit = (this.editor as any).getUnit?.() || 'px';
+        if (unit === 'mm') return this.setSizeMm(width, height, dpi);
+        if (unit === 'inch') {
+            const wmm = width * LengthConvert.CONSTANTS.INCH_TO_MM;
+            const hmm = height * LengthConvert.CONSTANTS.INCH_TO_MM;
+            return this.setSizeMm(wmm, hmm, dpi);
+        }
+        return this.setSize(width, height);
     }
 
     setZoomAuto(scale: number, cb?: (left?: number, top?: number) => void) {

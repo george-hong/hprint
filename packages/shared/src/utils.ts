@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { useClipboard, useFileDialog, useBase64 } from '@vueuse/core';
+import { fabric } from 'fabric';
 
 /**
  * @description: 图片文件转字符串
@@ -139,7 +140,7 @@ export function base64ToBlob(base64Data: string) {
         return null;
     }
     const dataArr = base64Data.split(',');
-    const imageType = dataArr[0].match(/:(.*?);/)[1];
+    const imageType = dataArr[0].match(/:(.*?);/)![1];
     const textData = window.atob(dataArr[1]);
     const arrayBuffer = new ArrayBuffer(textData.length);
     const uint8Array = new Uint8Array(arrayBuffer);

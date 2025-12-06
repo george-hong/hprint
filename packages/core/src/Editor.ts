@@ -3,6 +3,7 @@ import hotkeys from 'hotkeys-js';
 import ContextMenu from './ContextMenu.js';
 import ServersPlugin from './ServersPlugin';
 import { AsyncSeriesHook } from 'tapable';
+import { fabric } from '@hprint/shared';
 import type {
     IPluginMenu,
     IPluginClass,
@@ -12,13 +13,14 @@ import type {
 } from '@hprint/core';
 
 import Utils from './utils/utils';
+import { LengthConvert } from '@hprint/shared';
 
 class Editor extends EventEmitter {
     private canvas: fabric.Canvas | null = null;
     contextMenu: ContextMenu | null = null;
     [key: string]: any;
     // 全局长度单位（默认 px）
-    private unit: 'px' | 'mm' = 'px';
+    private unit: 'px' | 'mm' | 'inch' = 'px';
     private pluginMap: {
         [propName: string]: IPluginTempl;
     } = {};
@@ -46,6 +48,108 @@ class Editor extends EventEmitter {
         this._initServersPlugin();
 
         this.Utils = Utils;
+    }
+
+    setUnit(unit: 'px' | 'mm' | 'inch') {
+        this.unit = unit;
+        this.emit('unitChange', unit);
+    }
+
+    getUnit() {
+        return this.unit;
+    }
+
+    applyObjectPx(
+        obj: fabric.Object,
+        opts: {
+            left?: number;
+            top?: number;
+            width?: number;
+            height?: number;
+            strokeWidth?: number;
+            fontSize?: number;
+        }
+    ) {
+        const { left, top, width, height, strokeWidth, fontSize } = opts;
+        if (left !== undefined) obj.set('left', left);
+        if (top !== undefined) obj.set('top', top);
+        if (width !== undefined) obj.set('width', width);
+        if (height !== undefined) obj.set('height', height);
+        if (strokeWidth !== undefined) obj.set('strokeWidth', strokeWidth);
+        if (fontSize !== undefined) (obj as any).fontSize = fontSize;
+    }
+
+    applyObjectMm(
+        obj: fabric.Object,
+        mm: {
+            left?: number;
+            top?: number;
+            width?: number;
+            height?: number;
+            strokeWidth?: number;
+            fontSize?: number;
+        },
+        dpi?: number
+    ) {
+        const toPx = (v: number | undefined) =>
+            v === undefined
+                ? undefined
+                : LengthConvert.mmToPx(v, dpi, { direct: true });
+        this.applyObjectPx(obj, {
+            left: toPx(mm.left),
+            top: toPx(mm.top),
+            width: toPx(mm.width),
+            height: toPx(mm.height),
+            strokeWidth: toPx(mm.strokeWidth),
+            fontSize: toPx(mm.fontSize),
+        });
+        (obj as any)._originSize = { ...(obj as any)._originSize, mm: { ...mm } };
+    }
+
+    applyObjectInch(
+        obj: fabric.Object,
+        inch: {
+            left?: number;
+            top?: number;
+            width?: number;
+            height?: number;
+            strokeWidth?: number;
+            fontSize?: number;
+        },
+        dpi?: number
+    ) {
+        const toMm = (v: number | undefined) =>
+            v === undefined ? undefined : v * LengthConvert.CONSTANTS.INCH_TO_MM;
+        this.applyObjectMm(
+            obj,
+            {
+                left: toMm(inch.left),
+                top: toMm(inch.top),
+                width: toMm(inch.width),
+                height: toMm(inch.height),
+                strokeWidth: toMm(inch.strokeWidth),
+                fontSize: toMm(inch.fontSize),
+            },
+            dpi
+        );
+        (obj as any)._originSize = { ...(obj as any)._originSize, inch: { ...inch } };
+    }
+
+    applyObjectByUnit(
+        obj: fabric.Object,
+        opts: {
+            left?: number;
+            top?: number;
+            width?: number;
+            height?: number;
+            strokeWidth?: number;
+            fontSize?: number;
+        },
+        dpi?: number
+    ) {
+        if (this.unit === 'mm') return this.applyObjectMm(obj, opts, dpi);
+        if (this.unit === 'inch') return this.applyObjectInch(obj, opts, dpi);
+        return this.applyObjectPx(obj, opts);
     }
 
     get fabricCanvas() {

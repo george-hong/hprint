@@ -1,6 +1,6 @@
 export default class LengthConvert {
-    static devicePixelRatio = window.devicePixelRatio;
-    static _deviceDPI;
+    static devicePixelRatio: number = window.devicePixelRatio;
+    static _deviceDPI: number | null;
     static CONSTANTS = {
         INCH_TO_MM: 25.4,
         DEFAULT_DPI: 96,
@@ -14,7 +14,7 @@ export default class LengthConvert {
     /**
      * 获取设备DPI（缓存结果避免重复计算）
      */
-    static getDeviceDPI() {
+    static getDeviceDPI(): number {
         if (!this._deviceDPI) {
             try {
                 const element = document.createElement('div');
@@ -52,7 +52,7 @@ export default class LengthConvert {
         mm: number | string,
         dpi?: number,
         options?: { direct?: boolean }
-    ) {
+    ): number {
         const normalizedMm = this.normalizeNumber(mm, '毫米值');
         const currentDpi = this.getValidDpi(dpi);
         const directValue =
@@ -67,7 +67,7 @@ export default class LengthConvert {
      * @param {object} [options] - 可选参数
      * @returns {number} 毫米值
      */
-    static pxToMm(px: number | string, dpi?, options?) {
+    static pxToMm(px: number | string, dpi?: number, options?: unknown): number {
         const normalizedPx = this.normalizeNumber(px, '像素值');
         const currentDpi = this.getValidDpi(dpi);
         return (normalizedPx * this.CONSTANTS.INCH_TO_MM) / currentDpi;
@@ -76,19 +76,19 @@ export default class LengthConvert {
     /**
      * 批量转换毫米到像素
      */
-    static mmToPxBatch(mmArray, dpi) {
+    static mmToPxBatch(mmArray: Array<number | string>, dpi?: number): number[] {
         return mmArray.map((mm) => this.mmToPx(mm, dpi, undefined));
     }
 
     /**
      * 批量转换像素到毫米
      */
-    static pxToMmBatch(pxArray, dpi) {
+    static pxToMmBatch(pxArray: Array<number | string>, dpi?: number): number[] {
         return pxArray.map((px) => this.pxToMm(px, dpi, undefined));
     }
 
     // 私有方法
-    static getValidDpi(dpi?: number) {
+    static getValidDpi(dpi?: number): number {
         if (dpi !== undefined && dpi !== null) {
             const normalizedDpi = this.normalizeNumber(dpi, 'DPI值');
             if (normalizedDpi <= 0) {
@@ -109,7 +109,7 @@ export default class LengthConvert {
      * @param {string} name - 参数名称（用于错误提示）
      * @returns {number} 规范化后的数字
      */
-    static normalizeNumber(value, name) {
+    static normalizeNumber(value: number | string, name: string): number {
         if (typeof value === 'string') {
             const trimmed = value.trim();
             if (trimmed === '') {
@@ -127,7 +127,7 @@ export default class LengthConvert {
         return value;
     }
 
-    static validateNumber(value, name) {
+    static validateNumber(value: number | string, name: string): void {
         this.normalizeNumber(value, name);
     }
 
@@ -142,7 +142,7 @@ export default class LengthConvert {
      * @param {object} [options] - 可选参数 { direct: true } 是否允许非整数
      * @returns {number} 像素值
      */
-    static ptToPx(pt, options) {
+    static ptToPx(pt: number | string, options?: { direct?: boolean }): number {
         const normalizedPt = this.normalizeNumber(pt, '磅值');
         const currentDpi = this.getValidDpi(undefined);
         // 1英寸 = 72pt，所以 px = pt * dpi / 72
@@ -155,7 +155,7 @@ export default class LengthConvert {
      * @param {number|string} px - 像素值
      * @returns {number} 磅值
      */
-    static pxToPt(px) {
+    static pxToPt(px: number | string): number {
         const normalizedPx = this.normalizeNumber(px, '像素值');
         const currentDpi = this.getValidDpi(undefined);
         // 1英寸 = 72pt，所以 pt = px * 72 / dpi
@@ -168,7 +168,10 @@ export default class LengthConvert {
      * @param {object} [options]
      * @returns {number[]}
      */
-    static ptToPxBatch(ptArray, options) {
+    static ptToPxBatch(
+        ptArray: Array<number | string>,
+        options?: { direct?: boolean }
+    ): number[] {
         return ptArray.map((pt) => this.ptToPx(pt, options));
     }
 
@@ -177,7 +180,7 @@ export default class LengthConvert {
      * @param {number[]} pxArray
      * @returns {number[]}
      */
-    static pxToPtBatch(pxArray) {
+    static pxToPtBatch(pxArray: Array<number | string>): number[] {
         return pxArray.map((px) => this.pxToPt(px));
     }
 
@@ -186,7 +189,7 @@ export default class LengthConvert {
      * @param {number|string} mm - 毫米值
      * @returns {number} 磅值
      */
-    static mmToPt(mm) {
+    static mmToPt(mm: number | string): number {
         // 毫米转磅（pt）
         // 1英寸 = 25.4毫米，1英寸 = 72pt，所以 1毫米 = 72/25.4 pt
         const normalizedMm = this.normalizeNumber(mm, '毫米值');
