@@ -1,3 +1,4 @@
+// 由于这个文件使用了较多其他插件的方法，所以这个插件应当最后加载
 import { fabric } from '@hprint/core';
 import type { IEditor, IPluginTempl } from '@hprint/core';
 import { LengthConvert } from '@hprint/shared';
@@ -11,6 +12,7 @@ type IPlugin = Pick<
     | 'createEllipse'
     | 'createPolygon'
     | 'createImageFromURL'
+    | 'createBarcode'
 >;
 
 declare module '@hprint/core' {
@@ -27,6 +29,7 @@ class CreateElementPlugin implements IPluginTempl {
         'createEllipse',
         'createPolygon',
         'createImageFromURL',
+        'createBarcode',
     ];
 
     static lengthFieldConfigs: Array<{ field: string; dealMethod: 'single' | 'points' }> = [
@@ -38,6 +41,7 @@ class CreateElementPlugin implements IPluginTempl {
         { field: 'strokeWidth', dealMethod: 'single' },
         { field: 'rx', dealMethod: 'single' },
         { field: 'ry', dealMethod: 'single' },
+        { field: 'boxWidth', dealMethod: 'single' },
         { field: 'points', dealMethod: 'points' },
     ];
 
@@ -247,6 +251,29 @@ class CreateElementPlugin implements IPluginTempl {
                 { crossOrigin: 'anonymous' }
             );
         });
+    }
+
+
+    async createBarcode(
+        barcodeValue: string,
+        opts?: {
+            left?: number;
+            top?: number;
+            height?: number;
+            boxWidth?: number;
+            fontSize?: number;
+            format?: string;
+            textAlign?: string;
+            textPosition?: string;
+            background?: string;
+            lineColor?: string;
+            displayValue?: boolean;
+            margin?: number;
+            width?: number;
+        },
+        dpi?: number
+    ): Promise<fabric.Image> {
+        return (this.editor as any).addBarcode?.(barcodeValue, opts, dpi);
     }
 
     destroy() {
