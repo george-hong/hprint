@@ -1,6 +1,6 @@
 import { fabric, IEditor, IPluginTempl } from '@hprint/core';
 import JsBarcode from 'jsbarcode';
-import { LengthConvert } from '@hprint/shared';
+import { getUnit, processOptions } from '../utils/units';
 
 type IPlugin = Pick<
     BarCodePlugin,
@@ -684,33 +684,7 @@ class BarCodePlugin implements IPluginTempl {
         }
     }
 
-    private _getUnit(): 'px' | 'mm' | 'inch' {
-        return (this.editor as any).getUnit?.() ?? 'px';
-    }
-    private _convertSingle(value: number | string, dpi?: number): number {
-        const unit = this._getUnit();
-        if (unit === 'px') return typeof value === 'string' ? Number(value) : value;
-        if (unit === 'mm') return LengthConvert.mmToPx(value as any, dpi, { direct: true });
-        return LengthConvert.mmToPx(
-            (typeof value === 'string' ? Number(value) : (value as number)) * LengthConvert.CONSTANTS.INCH_TO_MM,
-            dpi,
-            { direct: true }
-        );
-    }
-    private _processOptions(opts: Record<string, any> = {}, dpi?: number): { processed: Record<string, number>; originByUnit: Record<string, Record<string, any>> } {
-        const unit = this._getUnit();
-        const fields = new Set(['left', 'top', 'width', 'height', 'fontSize', 'boxWidth']);
-        const processed: Record<string, number> = {};
-        const originUnit: Record<string, any> = {};
-        for (const key of Object.keys(opts)) {
-            if (!fields.has(key)) continue;
-            const val = opts[key];
-            if (val === undefined) continue;
-            originUnit[key] = val;
-            processed[key] = this._convertSingle(val, dpi);
-        }
-        return { processed, originByUnit: { [unit]: originUnit } };
-    }
+
 
     async addBarcode(
         value?: string,
@@ -739,7 +713,8 @@ class BarCodePlugin implements IPluginTempl {
         if ((option as any).type && !option.format) {
             (option as any).format = (option as any).type;
         }
-        const { processed, originByUnit } = this._processOptions(option, dpi);
+        const unit = getUnit(this.editor);
+        const { processed, originByUnit } = processOptions(option, unit, dpi);
         const finalOption = { ...option, ...processed };
         const url = await this._getBase64Str(JSON.parse(JSON.stringify(finalOption)));
         return new Promise<fabric.Image>((resolve) => {
@@ -774,7 +749,7 @@ class BarCodePlugin implements IPluginTempl {
                             : (imgEl.height ?? 0);
                     this._setImageScale(imgEl, targetWidth, targetHeight);
 
-                    const unit = this._getUnit();
+                    const unit = getUnit(this.editor);
                     const origin = originByUnit[unit] || {};
                     const originMapped: Record<string, any> = { ...origin };
                     if (originMapped.boxWidth !== undefined) {

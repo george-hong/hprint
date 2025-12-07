@@ -1,4 +1,4 @@
-import { fabric } from '@hprint/core';
+import { fabric, IEditor } from '@hprint/core';
 import { LengthConvert } from '@hprint/shared';
 
 export type MmOptions = {
@@ -65,5 +65,41 @@ export function syncMmFromObject(obj: fabric.Object, dpi?: number) {
       fontSize: toMm(fontSize),
     },
   };
+}
+
+export type UnitType = 'px' | 'mm' | 'inch';
+
+export function getUnit(editor: IEditor): UnitType {
+  return (editor as any).getUnit?.() ?? 'px';
+}
+
+export function convertSingle(
+  value: number | string,
+  unit: UnitType,
+  dpi?: number
+): number {
+  if (unit === 'px') return typeof value === 'string' ? Number(value) : value;
+  if (unit === 'mm') return LengthConvert.mmToPx(value as any, dpi, { direct: true });
+  const num = typeof value === 'string' ? Number(value) : (value as number);
+  return LengthConvert.mmToPx(num * LengthConvert.CONSTANTS.INCH_TO_MM, dpi, { direct: true });
+}
+
+export function processOptions(
+  opts: Record<string, any> = {},
+  unit: UnitType,
+  dpi?: number,
+  fields: string[] = ['left', 'top', 'width', 'height', 'fontSize', 'boxWidth']
+): { processed: Record<string, number>; originByUnit: Record<string, Record<string, any>> } {
+  const fieldSet = new Set(fields);
+  const processed: Record<string, number> = {};
+  const originUnit: Record<string, any> = {};
+  for (const key of Object.keys(opts)) {
+    if (!fieldSet.has(key)) continue;
+    const val = opts[key];
+    if (val === undefined) continue;
+    originUnit[key] = val;
+    processed[key] = convertSingle(val, unit, dpi);
+  }
+  return { processed, originByUnit: { [unit]: originUnit } };
 }
 
