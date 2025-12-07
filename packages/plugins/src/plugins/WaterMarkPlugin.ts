@@ -9,7 +9,7 @@ type IPlugin = Pick<
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface IEditor extends IPlugin {}
+    interface IEditor extends IPlugin { }
 }
 
 enum POSITION {
@@ -244,10 +244,12 @@ class WaterMarkPlugin implements IPluginTempl {
     }
 
     init() {
+        // TODO 这里接受的参数应该时当前单位对应的尺寸信息，可能会有问题
         this.editor.on('sizeChange', this.drawWaterMark.bind(this));
     }
 
     destroy() {
+        // TODO 这里接受的参数应该时当前单位对应的尺寸信息，可能会有问题
         this.editor.off('sizeChange', this.drawWaterMark);
     }
 }

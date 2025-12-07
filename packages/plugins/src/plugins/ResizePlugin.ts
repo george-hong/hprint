@@ -164,14 +164,16 @@ class ResizePlugin implements IPluginTempl {
                             this.wsOffset.left + deltaViewX * 2
                         );
                         workspace.set('width', tempLength);
+                        this.editor.syncOriginSizeByUnit(tempLength, undefined);
                     } else {
                         workspace.set(
                             'left',
                             this.wsOffset.left +
-                                this.wsOffset.width -
-                                this.minSize.width
+                            this.wsOffset.width -
+                            this.minSize.width
                         );
                         workspace.set('width', this.minSize.width);
+                        this.editor.syncOriginSizeByUnit(this.minSize.width, undefined);
                     }
                     break;
                 case 'right':
@@ -181,8 +183,10 @@ class ResizePlugin implements IPluginTempl {
                     if (tempLength >= this.minSize.width) {
                         this.dragEl.style.left = `${this.barOffset.x + deltaX}px`;
                         workspace.set('width', tempLength);
+                        this.editor.syncOriginSizeByUnit(tempLength, undefined);
                     } else {
                         workspace.set('width', this.minSize.width);
+                        this.editor.syncOriginSizeByUnit(this.minSize.width, undefined);
                     }
                     break;
                 case 'top':
@@ -196,14 +200,16 @@ class ResizePlugin implements IPluginTempl {
                             this.wsOffset.top + deltaViewY * 2
                         );
                         workspace.set('height', tempLength);
+                        this.editor.syncOriginSizeByUnit(undefined, tempLength);
                     } else {
                         workspace.set(
                             'top',
                             this.wsOffset.top +
-                                this.wsOffset.height -
-                                this.minSize.height
+                            this.wsOffset.height -
+                            this.minSize.height
                         );
                         workspace.set('height', this.minSize.height);
+                        this.editor.syncOriginSizeByUnit(undefined, this.minSize.height);
                     }
                     break;
                 case 'bottom':
@@ -213,8 +219,10 @@ class ResizePlugin implements IPluginTempl {
                     if (tempLength >= this.minSize.height) {
                         this.dragEl.style.top = `${this.barOffset.y + deltaY}px`;
                         workspace.set('height', tempLength);
+                        this.editor.syncOriginSizeByUnit(undefined, tempLength);
                     } else {
                         workspace.set('height', this.minSize.height);
+                        this.editor.syncOriginSizeByUnit(undefined, this.minSize.height);
                     }
                     break;
                 default:
@@ -231,7 +239,12 @@ class ResizePlugin implements IPluginTempl {
             } else {
                 this.canvas.defaultCursor = 'ns-resize';
             }
-            this.editor.emit('sizeChange', workspace.width, workspace.height);
+            let curUnitWidth = workspace.width;
+            let curUnitHeight = workspace.height;
+            if (this.editor.getUnit() !== 'px') {
+                ({ width: curUnitWidth, height: curUnitHeight } = this.editor.getOriginSize());
+            }
+            this.editor.emit('sizeChange', { width: curUnitWidth, height: curUnitHeight });
         }
     }
 

@@ -9,6 +9,9 @@ type IPlugin = Pick<
     | 'getUnit'
     | 'setUnit'
     | 'getSizeByUnit'
+    | 'setSizeByUnit'
+    | 'getOriginSize'
+    | 'syncOriginSizeByUnit'
     | 'applyObjectPx'
     | 'applyObjectMm'
     | 'applyObjectInch'
@@ -29,12 +32,16 @@ class UnitPlugin implements IPluginTempl {
         'getUnit',
         'setUnit',
         'getSizeByUnit',
+        'setSizeByUnit',
+        'getOriginSize',
+        'syncOriginSizeByUnit',
         'applyObjectPx',
         'applyObjectMm',
         'applyObjectInch',
         'applyObjectByUnit',
     ];
     unit: TUnit = 'px';
+    _originSize: Record<string, { width: number, height: number }> = { mm: { width: 0, height: 0 } };
     constructor(
         public canvas: fabric.Canvas,
         public editor: IEditor
@@ -73,6 +80,10 @@ class UnitPlugin implements IPluginTempl {
         const targetUnit = unit ?? this.editor.getUnit();
         if (targetUnit === 'px') return pxValue;
         if (targetUnit === 'mm') return LengthConvert.pxToMm(pxValue, dpi, { direct: true });
+        if (targetUnit === 'inch') {
+            const mm = LengthConvert.pxToMm(pxValue, dpi, { direct: true });
+            return mm / LengthConvert.CONSTANTS.INCH_TO_MM;
+        }
     }
 
     applyObjectPx(
@@ -87,6 +98,7 @@ class UnitPlugin implements IPluginTempl {
         }
     ) {
         const { left, top, width, height, strokeWidth, fontSize } = opts;
+        // fontSize必须在width之前，否则可能宽度设置不正确
         if (fontSize !== undefined) obj.set('fontSize', fontSize);
         if (strokeWidth !== undefined) obj.set('strokeWidth', strokeWidth);
         if (width !== undefined) obj.set('width', width);
@@ -167,6 +179,76 @@ class UnitPlugin implements IPluginTempl {
         return this.applyObjectPx(obj, opts);
     }
 
+    // mm
+    setSizeMm(widthMm: number, heightMm: number, dpi?: number) {
+        const width = LengthConvert.mmToPx(widthMm, dpi, { direct: true });
+        const height = LengthConvert.mmToPx(heightMm, dpi, { direct: true });
+        this.editor.setSize(width, height);
+        this._syncOriginSize(widthMm, heightMm);
+    }
+
+    setSizeByUnit(width: number, height: number, options: { dpi: number, slient?: boolean }) {
+        const unit = (this.editor as any).getUnit?.() || 'px';
+        if (unit === 'mm') {
+            return this.setSizeMm(width, height, options.dpi);
+        }
+        if (unit === 'inch') {
+            this._syncOriginSize(width, height);
+            const wmm = width * LengthConvert.CONSTANTS.INCH_TO_MM;
+            const hmm = height * LengthConvert.CONSTANTS.INCH_TO_MM;
+            return this.setSizeMm(wmm, hmm, options.dpi);
+        }
+        this.editor.setSize(width, height, { slient: options.slient });
+    }
+
+    getOriginSize(dpi?: number) {
+        const unit = this.getUnit();
+        const origin = (this.canvas as any)._originSize || {};
+        const originMm: { width?: number; height?: number } = origin.mm || {};
+
+        if (unit === 'px') {
+            return {
+                width: this.canvas.getWidth(),
+                height: this.canvas.getHeight(),
+            };
+        }
+
+        const ensureMmWidth = originMm.width !== undefined
+            ? originMm.width
+            : LengthConvert.pxToMm(this.canvas.getWidth(), dpi, { direct: true });
+        const ensureMmHeight = originMm.height !== undefined
+            ? originMm.height
+            : LengthConvert.pxToMm(this.canvas.getHeight(), dpi, { direct: true });
+
+        if (unit === 'mm') {
+            return this._originSize.mm ?? {
+                width: ensureMmWidth,
+                height: ensureMmHeight,
+            };
+        }
+
+        // inch
+        return this._originSize.inch ?? {
+            width: ensureMmWidth / LengthConvert.CONSTANTS.INCH_TO_MM,
+            height: ensureMmHeight / LengthConvert.CONSTANTS.INCH_TO_MM,
+        };
+    }
+
+    _syncOriginSize(width?: number, height?: number) {
+        const unit = this.getUnit();
+        if (unit === 'px') return;
+        width !== undefined && (this._originSize[unit].width = width);
+        height !== undefined && (this._originSize[unit].height = height);
+    }
+
+    syncOriginSizeByUnit(width?: number, height?: number) {
+        const unit = this.getUnit();
+        if (unit === 'mm') {
+            if (width !== undefined) this._originSize[unit].width = LengthConvert.pxToMm(width, undefined, { direct: true });
+            if (height !== undefined) this._originSize[unit].height = LengthConvert.pxToMm(height, undefined, { direct: true });
+        }
+    }
+
     _bindEvents() {
         const throttledSync = throttle((obj: fabric.Object) => {
             syncMmFromObject(obj);
@@ -190,6 +272,15 @@ class UnitPlugin implements IPluginTempl {
         this.canvas.on('object:rotating', (e: any) => {
             const target = e.target as fabric.Object | undefined;
             if (target) throttledSync(target);
+        });
+
+        this.editor.on?.('sizeChange', (event: { width: number, height: number }) => {
+            const unit = this.getUnit();
+            if (unit === 'px') return;
+            if (unit === 'mm') {
+                this._syncOriginSize(event.width, event.height);
+                return
+            }
         });
     }
 
