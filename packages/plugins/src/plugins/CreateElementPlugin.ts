@@ -13,6 +13,7 @@ type IPlugin = Pick<
     | 'createPolygon'
     | 'createImageFromURL'
     | 'createBarcode'
+    | 'createQrcode'
 >;
 
 declare module '@hprint/core' {
@@ -30,6 +31,7 @@ class CreateElementPlugin implements IPluginTempl {
         'createPolygon',
         'createImageFromURL',
         'createBarcode',
+        'createQrcode',
     ];
 
     static lengthFieldConfigs: Array<{ field: string; dealMethod: 'single' | 'points' }> = [
@@ -254,6 +256,31 @@ class CreateElementPlugin implements IPluginTempl {
         dpi?: number
     ): Promise<fabric.Image> {
         return (this.editor as any).addBarcode?.(barcodeValue, opts, dpi);
+    }
+
+    /**
+     * 创建二维码元素，委托调用编辑器的 addQrCode，并支持单位转换与原始尺寸存储
+     */
+    async createQrcode(
+        codeValue: string,
+        opts?: {
+            left?: number;
+            top?: number;
+            width?: number;
+            height?: number;
+            margin?: number;
+            errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
+            dotsColor?: string;
+            dotsType?: string;
+            cornersSquareColor?: string;
+            cornersSquareType?: string;
+            cornersDotColor?: string;
+            cornersDotType?: string;
+            background?: string;
+        },
+        dpi?: number
+    ): Promise<fabric.Image> {
+        return (this.editor as any).addQrCode?.(codeValue, opts, dpi);
     }
 
     destroy() {
