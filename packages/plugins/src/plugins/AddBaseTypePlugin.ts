@@ -1,16 +1,16 @@
 import { fabric, IEditor, IPluginTempl } from '@hprint/core';
 import { v4 as uuid } from 'uuid';
 
-type IPlugin = Pick<AddBaseTypePlugin, 'addBaseType' | 'createImgByElement'>;
+type IPlugin = Pick<AddBaseTypePlugin, 'addObject' | 'createImgByElement'>;
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface IEditor extends IPlugin {}
+    interface IEditor extends IPlugin { }
 }
 
 export default class AddBaseTypePlugin implements IPluginTempl {
     static pluginName = 'AddBaseTypePlugin';
-    static apis = ['addBaseType', 'createImgByElement'];
+    static apis = ['addObject', 'createImgByElement'];
     constructor(
         public canvas: fabric.Canvas,
         public editor: IEditor
@@ -19,7 +19,7 @@ export default class AddBaseTypePlugin implements IPluginTempl {
         this.canvas = canvas;
     }
 
-    addBaseType(
+    addObject(
         item: fabric.Object,
         optons?: {
             event: DragEvent;

@@ -759,11 +759,6 @@ class BarCodePlugin implements IPluginTempl {
                     (imgEl as any)._originSize = { [unit]: originMapped };
 
                     this._bindBarcodeEvents(imgEl);
-                    this.canvas.add(imgEl);
-                    this.canvas.setActiveObject(imgEl);
-                    this.editor.position(new fabric.Point(0, 0));
-                    this.canvas.renderAll();
-                    this.editor.saveState();
                     resolve(imgEl);
                 },
                 { crossOrigin: 'anonymous' }

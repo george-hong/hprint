@@ -263,11 +263,6 @@ class QrCodePlugin implements IPluginTempl {
                         originMapped.height = originMapped.width;
                     }
                     (imgEl as any)._originSize = { [unit]: originMapped };
-
-                    this.canvas.add(imgEl);
-                    this.canvas.setActiveObject(imgEl);
-                    this.canvas.renderAll();
-                    this.editor.saveState();
                     resolve(imgEl);
                 },
                 { crossOrigin: 'anonymous' }
