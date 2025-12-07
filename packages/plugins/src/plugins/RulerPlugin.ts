@@ -46,7 +46,7 @@ class RulerPlugin implements IPluginTempl {
 
     init() {
         this.ruler = initRuler(this.canvas, this.editor, {
-            unit: this.editor.getUnit?.() || 'px',
+            unit: (this.editor.getUnit?.() as 'px' | 'mm') || 'px',
         });
         // 监听全局单位变化，更新标尺展示
         this.editor.on?.('unitChange', (unit: 'px' | 'mm') => {

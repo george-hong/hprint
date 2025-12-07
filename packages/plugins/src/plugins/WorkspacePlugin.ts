@@ -13,11 +13,19 @@ type IPlugin = Pick<
     | 'getWorkspase'
     | 'setWorkspaseBg'
     | 'setCenterFromObject'
+    | 'getZoom'
+    | 'setZoom'
 >;
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IEditor extends IPlugin { }
+}
+
+class WorkPluinConfig {
+    maxZoom = 20 // 最大缩放比例
+    minZoom = 0.01 // 最小缩放比例
+    zoomStep = 0.01 // 缩放步长
 }
 
 class WorkspacePlugin implements IPluginTempl {
@@ -34,22 +42,28 @@ class WorkspacePlugin implements IPluginTempl {
         'getWorkspase',
         'setWorkspaseBg',
         'setCenterFromObject',
+        'getZoom',
+        'setZoom',
     ];
     workspaceEl!: HTMLElement;
     workspace: null | fabric.Rect;
     resizeObserver!: ResizeObserver;
     option: any;
+    config!: WorkPluinConfig;
     zoomRatio: number;
     constructor(
         public canvas: fabric.Canvas,
-        public editor: IEditor
+        public editor: IEditor,
+        config?: Partial<WorkPluinConfig>,
     ) {
         this.workspace = null;
+        // init会调用auto随后使用this.config，所以要先设置
+        this.config = Object.assign(new WorkPluinConfig(), config);
         this.init({
             width: 114,
             height: 114,
         });
-        this.zoomRatio = 0.85;
+        this.zoomRatio = this._getValidZoom(0.85);
     }
 
     init(option: { width: number; height: number }) {
@@ -165,6 +179,10 @@ class WorkspacePlugin implements IPluginTempl {
         this.resizeObserver.observe(this.workspaceEl);
     }
 
+    _getValidZoom(zoom: number) {
+        return Math.max(this.config.minZoom, Math.min(this.config.maxZoom, zoom));
+    }
+
     // px
     setSize(width: number, height: number) {
         this._initBackground();
@@ -241,7 +259,7 @@ class WorkspacePlugin implements IPluginTempl {
     // 放大
     big() {
         let zoomRatio = this.canvas.getZoom();
-        zoomRatio += 0.05;
+        zoomRatio = this._getValidZoom(zoomRatio + this.config.zoomStep);
         const center = this.canvas.getCenter();
         this.canvas.zoomToPoint(
             new fabric.Point(center.left, center.top),
@@ -252,18 +270,19 @@ class WorkspacePlugin implements IPluginTempl {
     // 缩小
     small() {
         let zoomRatio = this.canvas.getZoom();
-        zoomRatio -= 0.05;
+        zoomRatio = this._getValidZoom(zoomRatio - this.config.zoomStep);
         const center = this.canvas.getCenter();
         this.canvas.zoomToPoint(
             new fabric.Point(center.left, center.top),
-            zoomRatio < 0 ? 0.01 : zoomRatio
+            zoomRatio
         );
     }
 
     // 自动缩放
     auto() {
         const scale = this._getScale();
-        this.setZoomAuto(scale * this.zoomRatio);
+        const zoom = this._getValidZoom(scale * this.zoomRatio);
+        this.setZoomAuto(zoom);
     }
 
     // 1:1 放大
@@ -272,18 +291,30 @@ class WorkspacePlugin implements IPluginTempl {
         this.canvas.requestRenderAll();
     }
 
+    getZoom() {
+        return this.canvas.getZoom();
+    }
+
+    setZoom(zoom: number) {
+        const center = this.canvas.getCenter();
+        this.canvas.zoomToPoint(
+            new fabric.Point(center.left, center.top),
+            this._getValidZoom(zoom)
+        );
+    }
+
     setWorkspaseBg(color: string) {
         const workspase = this.getWorkspase();
         workspase?.set('fill', color);
     }
 
     _bindWheel() {
+        const getValidZoom = this._getValidZoom.bind(this);
         this.canvas.on('mouse:wheel', function (this: fabric.Canvas, opt) {
             const delta = opt.e.deltaY;
             let zoom = this.getZoom();
             zoom *= 0.999 ** delta;
-            if (zoom > 20) zoom = 20;
-            if (zoom < 0.01) zoom = 0.01;
+            zoom = getValidZoom(zoom);
             const center = this.getCenter();
             this.zoomToPoint(new fabric.Point(center.left, center.top), zoom);
             opt.e.preventDefault();

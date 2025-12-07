@@ -4,12 +4,16 @@ import { LengthConvert } from '@hprint/shared';
 
 type IPlugin = Pick<
     CreateElementPlugin,
-    'createRect' | 'createTextbox' | 'createLine' | 'createEllipse' | 'createPolygon' | 'createImageFromURL'
+    | 'createRect'
+    | 'createText'
+    | 'createIText'
+    | 'createLine'
+    | 'createEllipse'
+    | 'createPolygon'
+    | 'createImageFromURL'
 >;
 
-
 declare module '@hprint/core' {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface IEditor extends IPlugin { }
 }
 
@@ -17,33 +21,19 @@ class CreateElementPlugin implements IPluginTempl {
     static pluginName = 'CreateElementPlugin';
     static apis = [
         'createRect',
-        'createTextbox',
+        'createText',
         'createLine',
+        'createIText',
         'createEllipse',
         'createPolygon',
         'createImageFromURL',
     ];
+
     constructor(
         public canvas: fabric.Canvas,
         public editor: IEditor
-    ) {
-        this.editor = editor;
-        this.canvas = canvas;
-    }
+    ) { }
 
-    hookSaveBefore() {
-        return new Promise((resolve) => {
-            resolve(true);
-        });
-    }
-
-    hookSaveAfter() {
-        return new Promise((resolve) => {
-            resolve(true);
-        });
-    }
-
-    // Object creation wrappers using current unit
     createRect(
         opts: {
             left?: number;
@@ -55,14 +45,36 @@ class CreateElementPlugin implements IPluginTempl {
         },
         dpi?: number
     ): fabric.Rect {
-        const rect = new fabric.Rect({
-            fill: opts.fill,
-        });
-        this.editor.applyObjectByUnit(rect, opts, dpi);
+        const rect = new fabric.Rect({ fill: opts.fill });
+        (this.editor as any).applyObjectByUnit?.(rect, opts, dpi);
         return rect;
     }
 
-    createTextbox(
+    createText(
+        text: string,
+        opts: {
+            left?: number;
+            top?: number;
+            width?: number;
+            height?: number;
+            fontSize?: number;
+            strokeWidth?: number;
+            fill?: string;
+            fontFamily?: string;
+            splitByGrapheme?: boolean;
+        },
+        dpi?: number
+    ): fabric.Textbox {
+        const tb = new fabric.Textbox(text, {
+            fill: opts.fill,
+            fontFamily: opts.fontFamily,
+            splitByGrapheme: opts.splitByGrapheme,
+        });
+        (this.editor as any).applyObjectByUnit?.(tb, opts, dpi);
+        return tb;
+    }
+
+    createIText(
         text: string,
         opts: {
             left?: number;
@@ -80,7 +92,7 @@ class CreateElementPlugin implements IPluginTempl {
             fill: opts.fill,
             fontFamily: opts.fontFamily,
         });
-        this.editor.applyObjectByUnit(tb, opts, dpi);
+        (this.editor as any).applyObjectByUnit?.(tb, opts, dpi);
         return tb;
     }
 
@@ -95,10 +107,11 @@ class CreateElementPlugin implements IPluginTempl {
         },
         dpi?: number
     ): fabric.Line {
+        const unit: 'px' | 'mm' | 'inch' = (this.editor as any).getUnit?.() ?? 'px';
         const toPx = (v: number) =>
-            this.editor.getUnit() === 'px'
+            unit === 'px'
                 ? v
-                : this.editor.getUnit() === 'mm'
+                : unit === 'mm'
                     ? LengthConvert.mmToPx(v, dpi, { direct: true })
                     : LengthConvert.mmToPx(
                         v * LengthConvert.CONSTANTS.INCH_TO_MM,
@@ -137,7 +150,7 @@ class CreateElementPlugin implements IPluginTempl {
             height: opts.ry !== undefined ? opts.ry * 2 : undefined,
             strokeWidth: opts.strokeWidth,
         };
-        this.editor.applyObjectByUnit(ell, unitOpts, dpi);
+        (this.editor as any).applyObjectByUnit?.(ell, unitOpts, dpi);
         if (ell.width && ell.height) {
             ell.rx = ell.width / 2;
             ell.ry = ell.height / 2;
@@ -150,10 +163,11 @@ class CreateElementPlugin implements IPluginTempl {
         opts?: { fill?: string; strokeWidth?: number },
         dpi?: number
     ): fabric.Polygon {
+        const unit: 'px' | 'mm' | 'inch' = (this.editor as any).getUnit?.() ?? 'px';
         const toPx = (v: number) =>
-            this.editor.getUnit() === 'px'
+            unit === 'px'
                 ? v
-                : this.editor.getUnit() === 'mm'
+                : unit === 'mm'
                     ? LengthConvert.mmToPx(v, dpi, { direct: true })
                     : LengthConvert.mmToPx(
                         v * LengthConvert.CONSTANTS.INCH_TO_MM,
@@ -166,15 +180,12 @@ class CreateElementPlugin implements IPluginTempl {
         });
         if (opts?.strokeWidth !== undefined) {
             const sw =
-                this.editor.getUnit() === 'px'
+                unit === 'px'
                     ? opts.strokeWidth
-                    : this.editor.getUnit() === 'mm'
-                        ? LengthConvert.mmToPx(opts.strokeWidth, dpi, {
-                            direct: true,
-                        })
+                    : unit === 'mm'
+                        ? LengthConvert.mmToPx(opts.strokeWidth, dpi, { direct: true })
                         : LengthConvert.mmToPx(
-                            opts.strokeWidth *
-                            LengthConvert.CONSTANTS.INCH_TO_MM,
+                            opts.strokeWidth * LengthConvert.CONSTANTS.INCH_TO_MM,
                             dpi,
                             { direct: true }
                         );
@@ -197,7 +208,7 @@ class CreateElementPlugin implements IPluginTempl {
             fabric.Image.fromURL(
                 url,
                 (img) => {
-                    if (opts) this.editor.applyObjectByUnit(img, opts, dpi);
+                    if (opts) (this.editor as any).applyObjectByUnit?.(img, opts, dpi);
                     resolve(img);
                 },
                 { crossOrigin: 'anonymous' }
