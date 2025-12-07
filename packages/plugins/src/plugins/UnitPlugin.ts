@@ -2,6 +2,7 @@ import type { IEditor, IPluginTempl } from '@hprint/core';
 import { LengthConvert } from '@hprint/shared';
 import { syncMmFromObject } from '../utils/units';
 import { fabric } from '@hprint/core';
+import { throttle } from 'lodash-es';
 
 type IPlugin = Pick<
     UnitPlugin,
@@ -167,9 +168,28 @@ class UnitPlugin implements IPluginTempl {
     }
 
     _bindEvents() {
+        const throttledSync = throttle((obj: fabric.Object) => {
+            syncMmFromObject(obj);
+        }, 30);
+
         this.canvas.on('object:modified', (e: any) => {
             const target = e.target as fabric.Object | undefined;
             if (target) syncMmFromObject(target);
+        });
+
+        this.canvas.on('object:moving', (e: any) => {
+            const target = e.target as fabric.Object | undefined;
+            if (target) throttledSync(target);
+        });
+
+        this.canvas.on('object:scaling', (e: any) => {
+            const target = e.target as fabric.Object | undefined;
+            if (target) throttledSync(target);
+        });
+
+        this.canvas.on('object:rotating', (e: any) => {
+            const target = e.target as fabric.Object | undefined;
+            if (target) throttledSync(target);
         });
     }
 

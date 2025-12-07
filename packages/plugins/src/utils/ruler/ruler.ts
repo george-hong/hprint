@@ -75,6 +75,10 @@ export type Rect = { left: number; top: number; width: number; height: number };
 
 export type HighlightRect = {
     skip?: 'x' | 'y';
+    originXStart?: number;
+    originXEnd?: number;
+    originYStart?: number;
+    originYEnd?: number;
 } & Rect;
 
 class CanvasRuler {
@@ -103,9 +107,9 @@ class CanvasRuler {
     private objectRect:
         | undefined
         | {
-              x: HighlightRect[];
-              y: HighlightRect[];
-          };
+            x: HighlightRect[];
+            y: HighlightRect[];
+        };
 
     /**
      * 事件句柄缓存
@@ -113,6 +117,16 @@ class CanvasRuler {
     private eventHandler: Record<string, (...args: any) => void> = {
         // calcCalibration: this.calcCalibration.bind(this),
         calcObjectRect: throttle(this.calcObjectRect.bind(this), 15),
+        markRectDirtyImmediate: (e?: IEvent<Event>) => {
+            this.currentMovingTarget = (e as any)?.target;
+            this.needsRectUpdate = true;
+            this.options.canvas.requestRenderAll();
+        },
+        markRectDirtyThrottled: throttle((e?: IEvent<Event>) => {
+            this.currentMovingTarget = (e as any)?.target;
+            this.needsRectUpdate = true;
+            this.options.canvas.requestRenderAll();
+        }, 30),
         clearStatus: this.clearStatus.bind(this),
         canvasMouseDown: this.canvasMouseDown.bind(this),
         canvasMouseMove: throttle(this.canvasMouseMove.bind(this), 15),
@@ -129,12 +143,14 @@ class CanvasRuler {
         cursor: string | undefined;
         selection: boolean | undefined;
     } = {
-        status: 'out',
-        cursor: undefined,
-        selection: undefined,
-    };
+            status: 'out',
+            cursor: undefined,
+            selection: undefined,
+        };
 
     private tempGuidelLine: fabric.GuideLine | undefined;
+    private needsRectUpdate: boolean = true;
+    private currentMovingTarget: fabric.Object | undefined;
 
     constructor(_options: RulerOptions) {
         // 合并默认配置
@@ -244,6 +260,13 @@ class CanvasRuler {
             'selection:cleared',
             this.eventHandler.clearStatus
         );
+        this.options.canvas.on('object:added', this.eventHandler.markRectDirtyImmediate);
+        this.options.canvas.on('selection:created', this.eventHandler.markRectDirtyImmediate);
+        this.options.canvas.on('selection:updated', this.eventHandler.markRectDirtyImmediate);
+        this.options.canvas.on('object:moving', this.eventHandler.markRectDirtyThrottled);
+        this.options.canvas.on('object:modified', this.eventHandler.markRectDirtyImmediate);
+        this.options.canvas.on('object:scaling', this.eventHandler.markRectDirtyThrottled);
+        this.options.canvas.on('object:rotating', this.eventHandler.markRectDirtyThrottled);
 
         // 显示辅助线
         this.showGuideline();
@@ -275,6 +298,13 @@ class CanvasRuler {
             'selection:cleared',
             this.eventHandler.clearStatus
         );
+        this.options.canvas.off('object:added', this.eventHandler.markRectDirtyImmediate);
+        this.options.canvas.off('selection:created', this.eventHandler.markRectDirtyImmediate);
+        this.options.canvas.off('selection:updated', this.eventHandler.markRectDirtyImmediate);
+        this.options.canvas.off('object:moving', this.eventHandler.markRectDirtyThrottled);
+        this.options.canvas.off('object:modified', this.eventHandler.markRectDirtyImmediate);
+        this.options.canvas.off('object:scaling', this.eventHandler.markRectDirtyThrottled);
+        this.options.canvas.off('object:rotating', this.eventHandler.markRectDirtyThrottled);
 
         // 隐藏辅助线
         this.hideGuideline();
@@ -289,6 +319,15 @@ class CanvasRuler {
         // if (!this.options.enabled) return;
         const vpt = this.options.canvas.viewportTransform;
         if (!vpt) return;
+        if (this.needsRectUpdate) {
+            if (this.currentMovingTarget) {
+                this.calcObjectRectFromTarget(this.currentMovingTarget);
+            } else {
+                this.calcObjectRect();
+            }
+            this.currentMovingTarget = undefined;
+            this.needsRectUpdate = false;
+        }
         // 绘制尺子
         this.draw({
             isHorizontal: true,
@@ -347,7 +386,15 @@ class CanvasRuler {
         const { isHorizontal, rulerLength, startCalibration } = opt;
         const zoom = this.getZoom();
 
-        const gap = getGap(zoom);
+        let gap = getGap(zoom);
+        let mmStep = 1;
+        if (this.unit === 'mm') {
+            const mmPx = LengthConvert.mmToPx(1, undefined, { direct: true });
+            const screenMm = mmPx * zoom;
+            if (screenMm < 4) mmStep = 10;
+            else if (screenMm < 8) mmStep = 5;
+            gap = mmPx * mmStep;
+        }
         const unitLength = rulerLength / zoom;
         const startValue =
             Math[startCalibration > 0 ? 'floor' : 'ceil'](
@@ -372,6 +419,13 @@ class CanvasRuler {
         for (let i = 0; i + startOffset <= Math.ceil(unitLength); i += gap) {
             const position = (startOffset + i) * zoom;
             const textValue = this.formatLabel(startValue + i);
+            if (this.unit === 'mm') {
+                const mmVal = LengthConvert.pxToMm(startValue + i);
+                const mmRounded = Math.round(mmVal);
+                if (mmRounded % 5 !== 0) {
+                    continue;
+                }
+            }
             const textLength = (10 * textValue.length) / 4;
             const textX = isHorizontal
                 ? position - textLength - 1
@@ -391,10 +445,18 @@ class CanvasRuler {
         // 标尺刻度线显示
         for (let j = 0; j + startOffset <= Math.ceil(unitLength); j += gap) {
             const position = Math.round((startOffset + j) * zoom);
-            const left = isHorizontal ? position : this.options.ruleSize - 8;
-            const top = isHorizontal ? this.options.ruleSize - 8 : position;
-            const width = isHorizontal ? 0 : 8;
-            const height = isHorizontal ? 8 : 0;
+            let lineSize = 8;
+            if (this.unit === 'mm') {
+                const mmVal = LengthConvert.pxToMm(startValue + j);
+                const mmRounded = Math.round(mmVal);
+                if (mmRounded % 10 === 0) lineSize = 12;
+                else if (mmRounded % 5 === 0) lineSize = 10;
+                else lineSize = 6;
+            }
+            const left = isHorizontal ? position : this.options.ruleSize - lineSize;
+            const top = isHorizontal ? this.options.ruleSize - lineSize : position;
+            const width = isHorizontal ? 0 : lineSize;
+            const height = isHorizontal ? lineSize : 0;
             darwLine(this.ctx, {
                 left,
                 top,
@@ -414,22 +476,41 @@ class CanvasRuler {
                 }
 
                 // 获取数字的值
-                const computedPosition = (position: number) => {
-                    const value = this.options.editor.getSizeByUnit(
-                        position / zoom + startCalibration
-                    );
-                    return Math.round(value * 10) / 10;
+                const getOriginValue = (type: 'start' | 'end') => {
+                    if (this.unit === 'px') {
+                        const value = this.options.editor.getSizeByUnit(
+                            (type === 'start'
+                                ? isHorizontal
+                                    ? rect.left
+                                    : rect.top
+                                : isHorizontal
+                                    ? rect.left + rect.width
+                                    : rect.top + rect.height) /
+                            zoom +
+                            startCalibration
+                        );
+                        const num = Number(value);
+                        if (Number.isNaN(num)) return undefined;
+                        return Math.round(num * 100) / 100;
+                    }
+                    if (isHorizontal) {
+                        return type === 'start' ? rect.originXStart : rect.originXEnd;
+                    } else {
+                        return type === 'start' ? rect.originYStart : rect.originYEnd;
+                    }
                 };
-                const leftTextVal = computedPosition(
-                    isHorizontal ? rect.left : rect.top
-                );
-                const rightTextVal = computedPosition(
-                    isHorizontal
-                        ? rect.left + rect.width
-                        : rect.top + rect.height
-                );
 
-                const isSameText = leftTextVal === rightTextVal;
+                const leftTextVal = getOriginValue('start');
+                const rightTextVal = getOriginValue('end');
+                const leftTextStr =
+                    leftTextVal !== undefined ? Number(Number(leftTextVal).toFixed(2)) : undefined;
+                const rightTextStr =
+                    rightTextVal !== undefined ? Number(Number(rightTextVal).toFixed(2)) : undefined;
+
+                const isSameText =
+                    leftTextVal !== undefined &&
+                    rightTextVal !== undefined &&
+                    leftTextVal === rightTextVal;
 
                 // 背景遮罩
                 const maskOpt = {
@@ -475,22 +556,24 @@ class CanvasRuler {
                     angle: isHorizontal ? 0 : -90,
                 };
 
-                darwText(this.ctx, {
-                    ...textOpt,
-                    text: leftTextVal,
-                    left: isHorizontal ? rect.left - 2 : pad,
-                    top: isHorizontal ? pad : rect.top - 2,
-                    align: isSameText
-                        ? 'center'
-                        : isHorizontal
-                          ? 'right'
-                          : 'left',
-                });
-
-                if (!isSameText) {
+                if (leftTextStr !== undefined) {
                     darwText(this.ctx, {
                         ...textOpt,
-                        text: rightTextVal,
+                        text: leftTextStr,
+                        left: isHorizontal ? rect.left - 2 : pad,
+                        top: isHorizontal ? pad : rect.top - 2,
+                        align: isSameText
+                            ? 'center'
+                            : isHorizontal
+                                ? 'right'
+                                : 'left',
+                    });
+                }
+
+                if (!isSameText && rightTextStr !== undefined) {
+                    darwText(this.ctx, {
+                        ...textOpt,
+                        text: rightTextStr,
                         left: isHorizontal ? rect.left + rect.width + 2 : pad,
                         top: isHorizontal ? pad : rect.top + rect.height + 2,
                         align: isHorizontal ? 'left' : 'right',
@@ -578,6 +661,42 @@ class CanvasRuler {
             if (obj instanceof fabric.GuideLine) {
                 rect.skip = obj.isHorizontal() ? 'x' : 'y';
             }
+            if (this.unit !== 'px') {
+                const origin = (obj as any)._originSize?.[this.unit];
+                if (origin) {
+                    if (obj instanceof fabric.Polygon && Array.isArray(origin.points)) {
+                        const xs = origin.points.map((p: any) => p.x);
+                        const ys = origin.points.map((p: any) => p.y);
+                        const minX = Math.min(...xs);
+                        const maxX = Math.max(...xs);
+                        const minY = Math.min(...ys);
+                        const maxY = Math.max(...ys);
+                        rect.originXStart = minX;
+                        rect.originXEnd = maxX;
+                        rect.originYStart = minY;
+                        rect.originYEnd = maxY;
+                    } else {
+                        const left = origin.left;
+                        const top = origin.top;
+                        let width = origin.width;
+                        let height = origin.height;
+                        if (width === undefined && origin.rx !== undefined) {
+                            width = origin.rx * 2;
+                        }
+                        if (height === undefined && origin.ry !== undefined) {
+                            height = origin.ry * 2;
+                        }
+                        if (left !== undefined && width !== undefined) {
+                            rect.originXStart = left;
+                            rect.originXEnd = left + width;
+                        }
+                        if (top !== undefined && height !== undefined) {
+                            rect.originYStart = top;
+                            rect.originYEnd = top + height;
+                        }
+                    }
+                }
+            }
             rects.push(rect);
             return rects;
         }, [] as HighlightRect[]);
@@ -585,6 +704,78 @@ class CanvasRuler {
         this.objectRect = {
             x: mergeLines(allRect, true),
             y: mergeLines(allRect, false),
+        };
+    }
+
+    private calcObjectRectFromTarget(target: fabric.Object) {
+        const getRectFromObj = (obj: fabric.Object): HighlightRect => {
+            const rect: HighlightRect = obj.getBoundingRect(false, true);
+            if ((obj as any).group) {
+                const baseGroup: any = (obj as any).group;
+                const group = {
+                    ...baseGroup,
+                    scaleX: baseGroup?.scaleX ?? 1,
+                    scaleY: baseGroup?.scaleY ?? 1,
+                } as any;
+                rect.width *= group.scaleX;
+                rect.height *= group.scaleY;
+                const groupCenterX = group.width / 2 + group.left;
+                const objectOffsetFromCenterX =
+                    (group.width / 2 + (obj.left ?? 0)) * (1 - group.scaleX);
+                rect.left +=
+                    (groupCenterX - objectOffsetFromCenterX) * this.getZoom();
+                const groupCenterY = group.height / 2 + group.top;
+                const objectOffsetFromCenterY =
+                    (group.height / 2 + (obj.top ?? 0)) * (1 - group.scaleY);
+                rect.top +=
+                    (groupCenterY - objectOffsetFromCenterY) * this.getZoom();
+            }
+            if ((obj as any) instanceof fabric.GuideLine) {
+                (rect as any).skip = (obj as any).isHorizontal() ? 'x' : 'y';
+            }
+            if (this.unit !== 'px') {
+                const origin = (obj as any)._originSize?.[this.unit];
+                if (origin) {
+                    if ((obj as any) instanceof fabric.Polygon && Array.isArray(origin.points)) {
+                        const xs = origin.points.map((p: any) => p.x);
+                        const ys = origin.points.map((p: any) => p.y);
+                        const minX = Math.min(...xs);
+                        const maxX = Math.max(...xs);
+                        const minY = Math.min(...ys);
+                        const maxY = Math.max(...ys);
+                        rect.originXStart = minX;
+                        rect.originXEnd = maxX;
+                        rect.originYStart = minY;
+                        rect.originYEnd = maxY;
+                    } else {
+                        const left = origin.left;
+                        const top = origin.top;
+                        let width = origin.width;
+                        let height = origin.height;
+                        if (width === undefined && origin.rx !== undefined) {
+                            width = origin.rx * 2;
+                        }
+                        if (height === undefined && origin.ry !== undefined) {
+                            height = origin.ry * 2;
+                        }
+                        if (left !== undefined && width !== undefined) {
+                            rect.originXStart = left;
+                            rect.originXEnd = left + width;
+                        }
+                        if (top !== undefined && height !== undefined) {
+                            rect.originYStart = top;
+                            rect.originYEnd = top + height;
+                        }
+                    }
+                }
+            }
+            return rect;
+        };
+
+        const rect = getRectFromObj(target);
+        this.objectRect = {
+            x: mergeLines([rect], true),
+            y: mergeLines([rect], false),
         };
     }
 
