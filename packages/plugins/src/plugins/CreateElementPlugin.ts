@@ -152,31 +152,36 @@ class CreateElementPlugin implements IPluginTempl {
     }
 
     createLine(
-        opts: {
-            x1: number;
-            y1: number;
-            x2: number;
-            y2: number;
-            strokeWidth?: number;
-            stroke?: string;
-        },
+        points: Array<{ x: number; y: number }>,
+        opts?: { strokeWidth?: number; stroke?: string },
         dpi?: number
     ): fabric.Line {
-        const toPx = (v: number) => this._convertSingle(v, dpi);
+        const unit = this._getUnit();
+        const { processed: pts, originByUnit: originPoints } = this._processPoints(
+            points,
+            dpi
+        );
+        const { processed: optProcessed, originByUnit: originOpts } =
+            this._processOptions(opts || {}, dpi);
+
         const line = new fabric.Line(
-            [toPx(opts.x1), toPx(opts.y1), toPx(opts.x2), toPx(opts.y2)],
+            [pts[0].x, pts[0].y, pts[1].x, pts[1].y],
             {
                 strokeWidth:
-                    opts.strokeWidth !== undefined
-                        ? toPx(opts.strokeWidth)
+                    optProcessed.strokeWidth !== undefined
+                        ? optProcessed.strokeWidth
                         : undefined,
-                stroke: opts.stroke,
+                stroke: opts?.stroke,
             }
         );
-        const unit = this._getUnit();
-        const originUnit: Record<string, any> = {};
-        if (opts.strokeWidth !== undefined) originUnit.strokeWidth = opts.strokeWidth;
-        (line as any)._originSize = { [unit]: originUnit };
+
+        const mergedOrigin = {
+            [unit]: {
+                ...(originOpts[unit] || {}),
+                ...(originPoints[unit] || {}),
+            },
+        } as Record<string, any>;
+        (line as any)._originSize = mergedOrigin;
         return line;
     }
 
