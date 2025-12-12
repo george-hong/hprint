@@ -67,6 +67,77 @@ class CreateElementPlugin implements IPluginTempl {
         return { processed, originByUnit: { [unit]: originUnit } };
     }
 
+    /**
+     * 覆盖指定对象实例的 set 方法，仅在本插件创建的元素上生效
+     */
+    private _wrapSetForObject(obj: fabric.Object) {
+        const originalSet = obj.set.bind(obj);
+        const editorRef = this.editor;
+        const singleFields = CreateElementPlugin.lengthFieldConfigs
+            .filter((c) => c.dealMethod === 'single')
+            .map((c) => c.field);
+        const hasPointsField = CreateElementPlugin.lengthFieldConfigs.some(
+            (c) => c.field === 'points' && c.dealMethod === 'points'
+        );
+        const mergeOrigin = (target: any, unit: string, origin: Record<string, any>) => {
+            const prev = target._originSize || {};
+            const mergedUnit = { ...(prev[unit] || {}), ...origin };
+            target._originSize = { ...prev, [unit]: mergedUnit };
+        };
+        (obj as any).set = function (key: any, value?: any) {
+            const unit = getUnit(editorRef);
+            const dpi = 96;
+            const isTransforming = !!(this.canvas && (this.canvas as any)._currentTransform);
+            if (typeof key === 'string') {
+                const field = key as string;
+                if (singleFields.includes(field)) {
+                    if (isTransforming) {
+                        return originalSet(field, value);
+                    }
+                    if (value !== undefined) {
+                        const processedVal = convertSingle(value, unit, dpi);
+                        mergeOrigin(this, unit, { [field]: value });
+                        return originalSet(field, processedVal);
+                    }
+                }
+                if (field === 'points' && hasPointsField && Array.isArray(value)) {
+                    if (isTransforming) {
+                        return originalSet(field, value);
+                    }
+                    const pts = (value as Array<{ x: number; y: number }>).map((p) => ({
+                        x: convertSingle(p.x, unit, dpi),
+                        y: convertSingle(p.y, unit, dpi),
+                    }));
+                    mergeOrigin(this, unit, { points: value });
+                    return originalSet(field, pts);
+                }
+                return originalSet(key, value);
+            }
+            if (key && typeof key === 'object') {
+                const opts = { ...key } as Record<string, any>;
+                if (hasPointsField && Array.isArray(opts.points)) {
+                    if (isTransforming) {
+                        return originalSet(opts);
+                    }
+                    const pts = (opts.points as Array<{ x: number; y: number }>).map((p) => ({
+                        x: convertSingle(p.x, unit, dpi),
+                        y: convertSingle(p.y, unit, dpi),
+                    }));
+                    mergeOrigin(this, unit, { points: opts.points });
+                    opts.points = pts;
+                }
+                if (isTransforming) {
+                    return originalSet(opts);
+                }
+                const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
+                const originUnit = originByUnit[unit] || {};
+                if (Object.keys(originUnit).length) mergeOrigin(this, unit, originUnit);
+                return originalSet({ ...opts, ...processed });
+            }
+            return originalSet(key, value);
+        };
+    }
+
     createRect(
         opts: {
             left?: number;
@@ -83,6 +154,7 @@ class CreateElementPlugin implements IPluginTempl {
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
         const rect = new fabric.Rect({ ...opts, ...processed });
         (rect as any)._originSize = originByUnit;
+        this._wrapSetForObject(rect);
         return rect;
     }
 
@@ -106,6 +178,7 @@ class CreateElementPlugin implements IPluginTempl {
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
         const tb = new fabric.Textbox(text, { ...opts, ...processed });
         (tb as any)._originSize = originByUnit;
+        this._wrapSetForObject(tb);
         return tb;
     }
 
@@ -128,6 +201,7 @@ class CreateElementPlugin implements IPluginTempl {
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
         const tb = new fabric.IText(text, { ...opts, ...processed });
         (tb as any)._originSize = originByUnit;
+        this._wrapSetForObject(tb);
         return tb;
     }
 
@@ -163,6 +237,7 @@ class CreateElementPlugin implements IPluginTempl {
             },
         } as Record<string, any>;
         (line as any)._originSize = mergedOrigin;
+        this._wrapSetForObject(line);
         return line;
     }
 
@@ -182,6 +257,7 @@ class CreateElementPlugin implements IPluginTempl {
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
         const ell = new fabric.Ellipse({ ...opts, ...processed });
         (ell as any)._originSize = originByUnit;
+        this._wrapSetForObject(ell);
         return ell;
     }
 
@@ -204,6 +280,7 @@ class CreateElementPlugin implements IPluginTempl {
         poly.set({ ...(opts || {}), ...optProcessed });
         const mergedOrigin = { [unit]: { ...(originOpts[unit] || {}), ...(originPoints[unit] || {}) } };
         (poly as any)._originSize = mergedOrigin;
+        this._wrapSetForObject(poly);
         return poly;
     }
 
@@ -224,8 +301,9 @@ class CreateElementPlugin implements IPluginTempl {
                     if (opts) {
                         const unit = getUnit(this.editor);
                         const singleFields = CreateElementPlugin.lengthFieldConfigs.filter((c) => c.dealMethod === 'single').map((c) => c.field);
-                        const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
-                        img.set({ ...opts, ...processed });
+                        const { originByUnit } = processOptions(opts, unit, dpi, singleFields);
+                        this._wrapSetForObject(img);
+                        img.set({ ...opts });
                         (img as any)._originSize = originByUnit;
                     }
                     resolve(img);

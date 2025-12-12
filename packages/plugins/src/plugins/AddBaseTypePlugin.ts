@@ -1,5 +1,7 @@
 import { fabric, IEditor, IPluginTempl } from '@hprint/core';
 import { v4 as uuid } from 'uuid';
+import { getUnit, syncMmFromObject } from '../utils/units';
+import { LengthConvert } from '@hprint/shared';
 
 type IPlugin = Pick<AddBaseTypePlugin, 'addObject' | 'createImgByElement'>;
 
@@ -52,21 +54,56 @@ export default class AddBaseTypePlugin implements IPluginTempl {
             y: event.y - top,
         };
         const pointerVpt = this.canvas.restorePointerVpt(point);
-        item.set({
-            left: pointerVpt.x,
-            top: pointerVpt.y,
-        });
+        const leftUnit = this.editor.getSizeByUnit?.(pointerVpt.x, undefined, 96);
+        const topUnit = this.editor.getSizeByUnit?.(pointerVpt.y, undefined, 96);
+        item.set('left', leftUnit);
+        item.set('top', topUnit);
     }
 
     _toCenter(item: fabric.Object) {
         this.canvas.setActiveObject(item);
         this.editor.position('center');
+        const leftPx = item.left ?? 0;
+        const topPx = item.top ?? 0;
+        const leftUnit = this.editor.getSizeByUnit?.(leftPx, undefined, 96) ?? leftPx;
+        const topUnit = this.editor.getSizeByUnit?.(topPx, undefined, 96) ?? topPx;
+        item.set('left', leftUnit);
+        item.set('top', topUnit);
     }
 
     _toScale(item: fabric.Object) {
         const { width } = this.editor.getWorkspase();
         if (width === undefined) return;
         item.scaleToWidth(width / 2);
+    }
+
+    private _syncOriginPosition(item: fabric.Object, dpi?: number) {
+        const unit = getUnit(this.editor);
+        const prev = (item as any)._originSize || {};
+        if (unit === 'px') {
+            const originPx = {
+                left: item.left,
+                top: item.top,
+            };
+            (item as any)._originSize = { ...prev, px: { ...(prev.px || {}), ...originPx } };
+            return;
+        }
+        if (unit === 'mm') {
+            syncMmFromObject(item, dpi);
+            return;
+        }
+        const leftPx = item.left as number | undefined;
+        const topPx = item.top as number | undefined;
+        const toInch = (v: number | undefined) => {
+            if (v === undefined) return undefined;
+            const mm = LengthConvert.pxToMm(v, dpi);
+            return mm / LengthConvert.CONSTANTS.INCH_TO_MM;
+        };
+        const originInch = {
+            left: toInch(leftPx),
+            top: toInch(topPx),
+        };
+        (item as any)._originSize = { ...prev, inch: { ...(prev.inch || {}), ...originInch } };
     }
 
     createImgByElement(target: HTMLImageElement) {
