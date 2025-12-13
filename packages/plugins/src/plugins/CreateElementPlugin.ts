@@ -70,7 +70,7 @@ class CreateElementPlugin implements IPluginTempl {
     /**
      * 覆盖指定对象实例的 set 方法，仅在本插件创建的元素上生效
      */
-    private addSetByUnit(obj: fabric.Object) {
+    private addSetAndSyncByUnit(obj: fabric.Object) {
         const originalSet = obj.set.bind(obj);
         const editorRef = this.editor;
         const singleFields = CreateElementPlugin.lengthFieldConfigs
@@ -136,6 +136,39 @@ class CreateElementPlugin implements IPluginTempl {
             }
             return originalSet(key, value);
         };
+        (obj as any).syncOriginSizeByUnit = function (fieldsOrDpi?: any, dpi?: number) {
+            const unit = getUnit(editorRef);
+            if (unit === 'px') return;
+            const hasFieldsArray = Array.isArray(fieldsOrDpi);
+            const dpiVal = hasFieldsArray ? (dpi ?? 96) : (fieldsOrDpi ?? 96);
+            const ratio = convertSingle(1, unit, dpiVal) || 1;
+            const origin: Record<string, any> = {};
+            const targetFields: string[] =
+                hasFieldsArray && (fieldsOrDpi as string[])?.length ? (fieldsOrDpi as string[]) : singleFields;
+            targetFields.forEach((field) => {
+                if (field === 'points') return;
+                const currentVal = (this as any).get ? (this as any).get(field) : (this as any)[field];
+                if (typeof currentVal === 'number' && !isNaN(currentVal)) {
+                    // origin[field] = currentVal / ratio;
+                    origin[field] = editorRef.getSizeByUnit(currentVal);
+                    // TODO 页面没有同步坐标信息
+                }
+            });
+            const shouldSyncPoints =
+                hasPointsField &&
+                Array.isArray((this as any).points) &&
+                ((hasFieldsArray && (fieldsOrDpi as string[]).includes('points')) || !hasFieldsArray);
+            if (shouldSyncPoints) {
+                const pts = ((this as any).points as Array<{ x: number; y: number }>).map((p) => ({
+                    x: p.x / ratio,
+                    y: p.y / ratio,
+                }));
+                origin.points = pts;
+            }
+            if (Object.keys(origin).length) {
+                mergeOrigin(this, unit, origin);
+            }
+        };
     }
 
     createRect(
@@ -154,7 +187,7 @@ class CreateElementPlugin implements IPluginTempl {
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
         const rect = new fabric.Rect({ ...opts, ...processed });
         (rect as any)._originSize = originByUnit;
-        this.addSetByUnit(rect);
+        this.addSetAndSyncByUnit(rect);
         return rect;
     }
 
@@ -178,7 +211,7 @@ class CreateElementPlugin implements IPluginTempl {
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
         const tb = new fabric.Textbox(text, { ...opts, ...processed });
         (tb as any)._originSize = originByUnit;
-        this.addSetByUnit(tb);
+        this.addSetAndSyncByUnit(tb);
         return tb;
     }
 
@@ -201,7 +234,7 @@ class CreateElementPlugin implements IPluginTempl {
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
         const tb = new fabric.IText(text, { ...opts, ...processed });
         (tb as any)._originSize = originByUnit;
-        this.addSetByUnit(tb);
+        this.addSetAndSyncByUnit(tb);
         return tb;
     }
 
@@ -237,7 +270,7 @@ class CreateElementPlugin implements IPluginTempl {
             },
         } as Record<string, any>;
         (line as any)._originSize = mergedOrigin;
-        this.addSetByUnit(line);
+        this.addSetAndSyncByUnit(line);
         return line;
     }
 
@@ -257,7 +290,7 @@ class CreateElementPlugin implements IPluginTempl {
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
         const ell = new fabric.Ellipse({ ...opts, ...processed });
         (ell as any)._originSize = originByUnit;
-        this.addSetByUnit(ell);
+        this.addSetAndSyncByUnit(ell);
         return ell;
     }
 
@@ -280,7 +313,7 @@ class CreateElementPlugin implements IPluginTempl {
         poly.set({ ...(opts || {}), ...optProcessed });
         const mergedOrigin = { [unit]: { ...(originOpts[unit] || {}), ...(originPoints[unit] || {}) } };
         (poly as any)._originSize = mergedOrigin;
-        this.addSetByUnit(poly);
+        this.addSetAndSyncByUnit(poly);
         return poly;
     }
 
@@ -302,7 +335,7 @@ class CreateElementPlugin implements IPluginTempl {
                         const unit = getUnit(this.editor);
                         const singleFields = CreateElementPlugin.lengthFieldConfigs.filter((c) => c.dealMethod === 'single').map((c) => c.field);
                         const { originByUnit } = processOptions(opts, unit, dpi, singleFields);
-                        this.addSetByUnit(img);
+                        this.addSetAndSyncByUnit(img);
                         img.set({ ...opts });
                         (img as any)._originSize = originByUnit;
                     }

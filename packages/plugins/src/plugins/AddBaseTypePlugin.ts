@@ -37,6 +37,7 @@ export default class AddBaseTypePlugin implements IPluginTempl {
         if (!event && center) {
             this._toCenter(item);
         }
+        item.syncOriginSizeByUnit(['left', 'top']);
         this.canvas.setActiveObject(item);
         this.canvas.renderAll();
         this.editor.saveState();
@@ -59,8 +60,8 @@ export default class AddBaseTypePlugin implements IPluginTempl {
     }
 
     _toCenter(item: fabric.Object) {
-        this.canvas.setActiveObject(item);
-        this.editor.position('center');
+        // this.canvas.setActiveObject(item);
+        this.editor.positionV2(item, 'center');
     }
 
     _toScale(item: fabric.Object) {
