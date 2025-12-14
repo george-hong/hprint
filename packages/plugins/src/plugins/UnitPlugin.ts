@@ -34,6 +34,7 @@ class UnitPlugin implements IPluginTempl {
         'getSizeByUnit',
         'setSizeByUnit',
         'getOriginSize',
+        'getPrecision',
         'syncOriginSizeByUnit',
         'applyObjectPx',
         'applyObjectMm',
@@ -41,12 +42,17 @@ class UnitPlugin implements IPluginTempl {
         'applyObjectByUnit',
     ];
     unit: TUnit = 'px';
+    precision?: number;
     _originSize: Record<string, { width: number, height: number }> = { mm: { width: 0, height: 0 } };
     constructor(
         public canvas: fabric.Canvas,
-        public editor: IEditor
+        public editor: IEditor,
+        options?: {
+            unit?: TUnit;
+            precision?: number;
+        }
     ) {
-        this.init();
+        this.init(options);
         this._bindEvents();
     }
 
@@ -62,8 +68,9 @@ class UnitPlugin implements IPluginTempl {
         });
     }
 
-    init(unit?: TUnit) {
-        if (unit) this.unit = unit;
+    init(options?: { unit?: TUnit; precision?: number }) {
+        if (options?.unit) this.unit = options?.unit;
+        if (options?.precision) this.precision = options?.precision;
     }
 
     setUnit(unit: TUnit) {
@@ -76,6 +83,10 @@ class UnitPlugin implements IPluginTempl {
         return this.unit;
     }
 
+    getPrecision() {
+        return this.precision;
+    }
+
     getSizeByUnit(pxValue: number, unit?: TUnit, dpi?: number) {
         const targetUnit = unit ?? this.editor.getUnit();
         if (targetUnit === 'px') return pxValue;
@@ -84,6 +95,21 @@ class UnitPlugin implements IPluginTempl {
             const mm = LengthConvert.pxToMm(pxValue, dpi, { direct: true });
             return mm / LengthConvert.CONSTANTS.INCH_TO_MM;
         }
+    }
+
+    _toPrecisionValue(value: number) {
+        if (this.precision === undefined) return value;
+        const factor = Math.pow(10, this.precision);
+        return Math.round(value * factor) / factor;
+    }
+
+    _formatOriginUnitValues<T extends { [k: string]: number | undefined }>(vals: T): T {
+        const result: Record<string, number | undefined> = {};
+        for (const key in vals) {
+            const v = vals[key];
+            result[key] = v === undefined ? undefined : this._toPrecisionValue(v);
+        }
+        return result as T;
     }
 
     applyObjectPx(
@@ -129,7 +155,8 @@ class UnitPlugin implements IPluginTempl {
             strokeWidth: toPx(mm.strokeWidth),
             fontSize: toPx(mm.fontSize),
         });
-        (obj as any)._originSize = { ...(obj as any)._originSize, mm: { ...mm } };
+        const formatted = this._formatOriginUnitValues(mm);
+        (obj as any)._originSize = { ...(obj as any)._originSize, mm: { ...formatted } };
     }
 
     applyObjectInch(
@@ -158,7 +185,8 @@ class UnitPlugin implements IPluginTempl {
             },
             dpi
         );
-        (obj as any)._originSize = { ...(obj as any)._originSize, inch: { ...inch } };
+        const formatted = this._formatOriginUnitValues(inch);
+        (obj as any)._originSize = { ...(obj as any)._originSize, inch: { ...formatted } };
     }
 
     applyObjectByUnit(
@@ -237,26 +265,33 @@ class UnitPlugin implements IPluginTempl {
     _syncOriginSize(width?: number, height?: number) {
         const unit = this.getUnit();
         if (unit === 'px') return;
-        width !== undefined && (this._originSize[unit].width = width);
-        height !== undefined && (this._originSize[unit].height = height);
+        this._originSize[unit] = this._originSize[unit] || { width: 0, height: 0 };
+        if (width !== undefined) this._originSize[unit].width = this._toPrecisionValue(width);
+        if (height !== undefined) this._originSize[unit].height = this._toPrecisionValue(height);
     }
 
     syncOriginSizeByUnit(width?: number, height?: number) {
         const unit = this.getUnit();
         if (unit === 'mm') {
-            if (width !== undefined) this._originSize[unit].width = LengthConvert.pxToMm(width, undefined, { direct: true });
-            if (height !== undefined) this._originSize[unit].height = LengthConvert.pxToMm(height, undefined, { direct: true });
+            if (width !== undefined) {
+                const v = LengthConvert.pxToMm(width, undefined, { direct: true });
+                this._originSize[unit].width = this._toPrecisionValue(v);
+            }
+            if (height !== undefined) {
+                const v = LengthConvert.pxToMm(height, undefined, { direct: true });
+                this._originSize[unit].height = this._toPrecisionValue(v);
+            }
         }
     }
 
     _bindEvents() {
         const throttledSync = throttle((obj: fabric.Object) => {
-            syncMmFromObject(obj);
+            syncMmFromObject(obj, undefined, this.precision);
         }, 30);
 
         this.canvas.on('object:modified', (e: any) => {
             const target = e.target as fabric.Object | undefined;
-            if (target) syncMmFromObject(target);
+            if (target) syncMmFromObject(target, undefined, this.precision);
         });
 
         this.canvas.on('object:moving', (e: any) => {

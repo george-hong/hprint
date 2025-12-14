@@ -11,6 +11,7 @@ import {
 import { throttle } from 'lodash-es';
 import { setupGuideLine } from './guideline';
 import { LengthConvert } from '@hprint/shared';
+import { formatFixedString } from '../units';
 
 /**
  * 配置
@@ -502,10 +503,11 @@ class CanvasRuler {
 
                 const leftTextVal = getOriginValue('start');
                 const rightTextVal = getOriginValue('end');
+                const precision = this.options.editor.getPrecision?.() ?? 2;
                 const leftTextStr =
-                    leftTextVal !== undefined ? Number(Number(leftTextVal).toFixed(2)) : undefined;
+                    leftTextVal !== undefined ? formatFixedString(leftTextVal, precision) : undefined;
                 const rightTextStr =
-                    rightTextVal !== undefined ? Number(Number(rightTextVal).toFixed(2)) : undefined;
+                    rightTextVal !== undefined ? formatFixedString(rightTextVal, precision) : undefined;
 
                 const isSameText =
                     leftTextVal !== undefined &&

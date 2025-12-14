@@ -1,7 +1,7 @@
 // 由于这个文件使用了较多其他插件的方法，所以这个插件应当最后加载
 import { fabric } from '@hprint/core';
 import type { IEditor, IPluginTempl } from '@hprint/core';
-import { getUnit, convertSingle, processOptions } from '../utils/units';
+import { getUnit, convertSingle, processOptions, formatOriginValues } from '../utils/units';
 
 type IPlugin = Pick<
     CreateElementPlugin,
@@ -81,7 +81,9 @@ class CreateElementPlugin implements IPluginTempl {
         );
         const mergeOrigin = (target: any, unit: string, origin: Record<string, any>) => {
             const prev = target._originSize || {};
-            const mergedUnit = { ...(prev[unit] || {}), ...origin };
+            const precision = (editorRef as any).getPrecision?.();
+            const formatted = formatOriginValues(origin, precision);
+            const mergedUnit = { ...(prev[unit] || {}), ...formatted };
             target._originSize = { ...prev, [unit]: mergedUnit };
         };
         (obj as any).setByUnit = function (key: any, value?: any) {
@@ -149,9 +151,7 @@ class CreateElementPlugin implements IPluginTempl {
                 if (field === 'points') return;
                 const currentVal = (this as any).get ? (this as any).get(field) : (this as any)[field];
                 if (typeof currentVal === 'number' && !isNaN(currentVal)) {
-                    // origin[field] = currentVal / ratio;
                     origin[field] = editorRef.getSizeByUnit(currentVal);
-                    // TODO 页面没有同步坐标信息
                 }
             });
             const shouldSyncPoints =
@@ -185,8 +185,10 @@ class CreateElementPlugin implements IPluginTempl {
         const unit = getUnit(this.editor);
         const singleFields = CreateElementPlugin.lengthFieldConfigs.filter((c) => c.dealMethod === 'single').map((c) => c.field);
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
+        const precision = (this.editor as any).getPrecision?.();
+        const formattedOrigin = { [unit]: formatOriginValues(originByUnit[unit] || {}, precision) };
         const rect = new fabric.Rect({ ...opts, ...processed });
-        (rect as any)._originSize = originByUnit;
+        (rect as any)._originSize = formattedOrigin;
         this.addSetAndSyncByUnit(rect);
         return rect;
     }
@@ -209,8 +211,10 @@ class CreateElementPlugin implements IPluginTempl {
         const unit = getUnit(this.editor);
         const singleFields = CreateElementPlugin.lengthFieldConfigs.filter((c) => c.dealMethod === 'single').map((c) => c.field);
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
+        const precision = (this.editor as any).getPrecision?.();
+        const formattedOrigin = { [unit]: formatOriginValues(originByUnit[unit] || {}, precision) };
         const tb = new fabric.Textbox(text, { ...opts, ...processed });
-        (tb as any)._originSize = originByUnit;
+        (tb as any)._originSize = formattedOrigin;
         this.addSetAndSyncByUnit(tb);
         return tb;
     }
@@ -232,8 +236,10 @@ class CreateElementPlugin implements IPluginTempl {
         const unit = getUnit(this.editor);
         const singleFields = CreateElementPlugin.lengthFieldConfigs.filter((c) => c.dealMethod === 'single').map((c) => c.field);
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
+        const precision = (this.editor as any).getPrecision?.();
+        const formattedOrigin = { [unit]: formatOriginValues(originByUnit[unit] || {}, precision) };
         const tb = new fabric.IText(text, { ...opts, ...processed });
-        (tb as any)._originSize = originByUnit;
+        (tb as any)._originSize = formattedOrigin;
         this.addSetAndSyncByUnit(tb);
         return tb;
     }
@@ -263,10 +269,11 @@ class CreateElementPlugin implements IPluginTempl {
             }
         );
 
+        const precision = (this.editor as any).getPrecision?.();
         const mergedOrigin = {
             [unit]: {
-                ...(originOpts[unit] || {}),
-                ...(originPoints[unit] || {}),
+                ...formatOriginValues(originOpts[unit] || {}, precision),
+                ...formatOriginValues(originPoints[unit] || {}, precision),
             },
         } as Record<string, any>;
         (line as any)._originSize = mergedOrigin;
@@ -288,8 +295,10 @@ class CreateElementPlugin implements IPluginTempl {
         const unit = getUnit(this.editor);
         const singleFields = CreateElementPlugin.lengthFieldConfigs.filter((c) => c.dealMethod === 'single').map((c) => c.field);
         const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
+        const precision = (this.editor as any).getPrecision?.();
+        const formattedOrigin = { [unit]: formatOriginValues(originByUnit[unit] || {}, precision) };
         const ell = new fabric.Ellipse({ ...opts, ...processed });
-        (ell as any)._originSize = originByUnit;
+        (ell as any)._originSize = formattedOrigin;
         this.addSetAndSyncByUnit(ell);
         return ell;
     }
@@ -311,7 +320,13 @@ class CreateElementPlugin implements IPluginTempl {
             poly.set('strokeWidth', sw!);
         }
         poly.set({ ...(opts || {}), ...optProcessed });
-        const mergedOrigin = { [unit]: { ...(originOpts[unit] || {}), ...(originPoints[unit] || {}) } };
+        const precision = (this.editor as any).getPrecision?.();
+        const mergedOrigin = {
+            [unit]: {
+                ...formatOriginValues(originOpts[unit] || {}, precision),
+                ...formatOriginValues(originPoints[unit] || {}, precision),
+            }
+        };
         (poly as any)._originSize = mergedOrigin;
         this.addSetAndSyncByUnit(poly);
         return poly;
@@ -335,9 +350,11 @@ class CreateElementPlugin implements IPluginTempl {
                         const unit = getUnit(this.editor);
                         const singleFields = CreateElementPlugin.lengthFieldConfigs.filter((c) => c.dealMethod === 'single').map((c) => c.field);
                         const { originByUnit } = processOptions(opts, unit, dpi, singleFields);
+                        const precision = (this.editor as any).getPrecision?.();
                         this.addSetAndSyncByUnit(img);
                         img.set({ ...opts });
-                        (img as any)._originSize = originByUnit;
+                        const formattedOrigin = { [unit]: formatOriginValues(originByUnit[unit] || {}, precision) };
+                        (img as any)._originSize = formattedOrigin;
                     }
                     resolve(img);
                 },

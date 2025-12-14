@@ -44,9 +44,9 @@ export function applyMmToObject(
   };
 }
 
-export function syncMmFromObject(obj: fabric.Object, dpi?: number) {
+export function syncMmFromObject(obj: fabric.Object, dpi?: number, precision?: number) {
   const toMm = (v: number | undefined) =>
-    v === undefined ? undefined : LengthConvert.pxToMm(v, dpi);
+    v === undefined ? undefined : applyPrecision(LengthConvert.pxToMm(v, dpi), precision);
   const left = obj.left as number | undefined;
   const top = obj.top as number | undefined;
   const width = obj.width as number | undefined;
@@ -101,5 +101,33 @@ export function processOptions(
     processed[key] = convertSingle(val, unit, dpi);
   }
   return { processed, originByUnit: { [unit]: originUnit } };
+}
+
+export function applyPrecision(value: number, precision?: number) {
+  if (precision === undefined) return value;
+  const factor = Math.pow(10, precision);
+  return Math.round(value * factor) / factor;
+}
+
+function applyPrecisionDeep(value: any, precision?: number): any {
+  if (typeof value === 'number') return applyPrecision(value, precision);
+  if (Array.isArray(value)) return value.map((item) => applyPrecisionDeep(item, precision));
+  if (value && typeof value === 'object') {
+    const result: Record<string, any> = {};
+    Object.keys(value).forEach((key) => {
+      result[key] = applyPrecisionDeep(value[key], precision);
+    });
+    return result;
+  }
+  return value;
+}
+
+export function formatOriginValues(origin: Record<string, any>, precision?: number): Record<string, any> {
+  return applyPrecisionDeep(origin, precision);
+}
+
+export function formatFixedString(num: number, precision = 2): string {
+  const s = Number(num).toFixed(precision);
+  return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
 }
 
