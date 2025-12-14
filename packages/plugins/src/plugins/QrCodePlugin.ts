@@ -1,7 +1,7 @@
 import { fabric } from '@hprint/core';
 import QRCodeStyling from 'qr-code-styling';
 import { utils } from '@hprint/shared';
-import { getUnit, processOptions } from '../utils/units';
+import { getUnit, processOptions, formatOriginValues } from '../utils/units';
 import type { IEditor, IPluginTempl } from '@hprint/core';
 
 type IPlugin = Pick<QrCodePlugin, 'addQrCode' | 'setQrCode' | 'getQrCodeTypes'>;
@@ -105,7 +105,7 @@ class QrCodePlugin implements IPluginTempl {
 
     _defaultBarcodeOption() {
         return {
-            data: 'https://kuaitu.cc',
+            value: 'https://kuaitu.cc',
             width: 300,
             margin: 10,
             errorCorrectionLevel: 'M',
@@ -123,11 +123,16 @@ class QrCodePlugin implements IPluginTempl {
      * 将内部参数转换为二维码库需要的参数
      */
     _paramsToOption(option: any) {
+        const hasW = Number.isFinite(option.width);
+        const hasH = Number.isFinite(option.height);
+        const size = hasW && hasH
+            ? Math.max(option.width, option.height)
+            : (hasW ? option.width : (hasH ? option.height : undefined));
         const base = {
-            width: option.width,
-            height: option.height ?? option.width,
+            width: size,
+            height: size ?? option.width,
             type: 'canvas',
-            data: option.data != null ? String(option.data) : undefined,
+            data: option.value != null ? String(option.value) : undefined,
             margin: option.margin,
             qrOptions: {
                 errorCorrectionLevel: option.errorCorrectionLevel,
@@ -160,6 +165,40 @@ class QrCodePlugin implements IPluginTempl {
             merged.data = defaultParams.data;
         }
         return merged;
+    }
+
+    private async _updateQrCodeImage(imgEl: fabric.Image, immediate = false) {
+        const extension = imgEl.get('extension');
+        if (!extension) return;
+        const updateFn = async () => {
+            const currentWidth = imgEl.getScaledWidth();
+            const currentHeight = imgEl.getScaledHeight();
+            const size = Math.max(currentWidth, currentHeight);
+            const options = {
+                ...extension,
+                width: size,
+                height: size,
+            };
+            const paramsOption = this._paramsToOption(options);
+            try {
+                const url = await this._getBase64Str(paramsOption);
+                await new Promise<void>((resolve) => {
+                    imgEl.setSrc(url, () => {
+                        this._setImageScale(imgEl, currentWidth, currentHeight);
+                        imgEl.set('extension', options);
+                        this.canvas.renderAll();
+                        resolve();
+                    });
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        };
+        if (immediate) {
+            await updateFn();
+        } else {
+            setTimeout(updateFn, 300);
+        }
     }
 
     /**
@@ -207,7 +246,7 @@ class QrCodePlugin implements IPluginTempl {
         const option = {
             ...this._defaultBarcodeOption(),
             ...(opts || {}),
-            ...(data ? { data } : {}),
+            ...(data ? { value: data } : {}),
         };
         const unit = getUnit(this.editor);
         const { processed, originByUnit } = processOptions(option, unit, dpi, ['left', 'top', 'width', 'height', 'margin']);
@@ -263,6 +302,38 @@ class QrCodePlugin implements IPluginTempl {
                         originMapped.height = originMapped.width;
                     }
                     (imgEl as any)._originSize = { [unit]: originMapped };
+                    (imgEl as any).setExtension = async (fields: Record<string, any>) => {
+                        const currentExt = (imgEl.get('extension') as any) || {};
+                        const merged = { ...currentExt, ...(fields || {}) };
+                        imgEl.set('extension', merged);
+                        await this._updateQrCodeImage(imgEl, true);
+                    };
+                    (imgEl as any).setExtensionByUnit = async (
+                        fields: Record<string, any>,
+                        dpi?: number
+                    ) => {
+                        const curUnit = getUnit(this.editor);
+                        const { processed, originByUnit } = processOptions(fields || {}, curUnit, dpi);
+                        const precision = (this.editor as any).getPrecision?.();
+                        const formattedOrigin = formatOriginValues(originByUnit[curUnit] || {}, precision);
+                        const originSize = (imgEl as any)._originSize || {};
+                        const unitOrigin = originSize[curUnit] || {};
+                        unitOrigin.extension = { ...(unitOrigin.extension || {}), ...formattedOrigin };
+                        (imgEl as any)._originSize = { ...originSize, [curUnit]: unitOrigin };
+                        const currentExt = (imgEl.get('extension') as any) || {};
+                        const merged = { ...currentExt, ...processed };
+                        imgEl.set('extension', merged);
+                        await this._updateQrCodeImage(imgEl, true);
+                    };
+                    (imgEl as any).off?.('modified');
+                    (imgEl as any).off?.('scaled');
+                    imgEl.on('modified', async (event: any) => {
+                        const target = (event?.target as fabric.Image) || imgEl;
+                        await this._updateQrCodeImage(target, true);
+                    });
+                    imgEl.on('scaled', async () => {
+                        await this._updateQrCodeImage(imgEl, true);
+                    });
                     resolve(imgEl);
                 },
                 { crossOrigin: 'anonymous' }
@@ -285,6 +356,15 @@ class QrCodePlugin implements IPluginTempl {
                         extension: { ...option },
                     });
                     imgEl.scaleToWidth(activeObject.getScaledWidth());
+                    imgEl.off('modified');
+                    imgEl.off('scaled');
+                    imgEl.on('modified', async (event: any) => {
+                        const target = (event?.target as fabric.Image) || imgEl;
+                        await this._updateQrCodeImage(target, true);
+                    });
+                    imgEl.on('scaled', async () => {
+                        await this._updateQrCodeImage(imgEl, true);
+                    });
                     this.editor.del();
                     this.canvas.add(imgEl);
                     this.canvas.setActiveObject(imgEl);
