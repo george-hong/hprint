@@ -1,6 +1,6 @@
 import { fabric, IEditor, IPluginTempl } from '@hprint/core';
 import JsBarcode from 'jsbarcode';
-import { getUnit, processOptions } from '../utils/units';
+import { getUnit, processOptions, formatOriginValues } from '../utils/units';
 
 type IPlugin = Pick<
     BarCodePlugin,
@@ -216,6 +216,9 @@ class BarCodePlugin implements IPluginTempl {
             textAlign,
             textPosition,
             displayValue,
+            charSpacing,
+            lineHeight,
+            fontFamily,
             ...barcodeOptions
         } = option;
 
@@ -257,6 +260,12 @@ class BarCodePlugin implements IPluginTempl {
             boxWidth: option.boxWidth || originalBarcodeWidth, // 使用 boxWidth 而不是 originalBarcodeWidth
             scale: scale,
             textPosition: textPosition || 'bottom', // 传递文本位置，用于决定间距
+            charSpacing:
+                typeof charSpacing === 'number'
+                    ? charSpacing
+                    : (option as any).textSpacing ?? 0,
+            lineHeight: lineHeight || 1, // 传递行高
+            fontFamily: fontFamily || 'Arial', // 传递字体
         });
 
         // 合并条形码和文本，使用高分辨率
@@ -337,6 +346,8 @@ class BarCodePlugin implements IPluginTempl {
             scale: number;
             textPosition?: string;
             fontFamily?: string;
+            charSpacing?: number; // 字符间距
+            lineHeight?: number; // 行高
         }
     ): HTMLCanvasElement {
         const canvas = document.createElement('canvas');
@@ -347,15 +358,12 @@ class BarCodePlugin implements IPluginTempl {
         // 根据缩放比例设置 canvas 的实际尺寸
         const scaledWidth = options.boxWidth * options.scale;
         const scaledFontSize = options.fontSize * options.scale;
-        const textHeight = scaledFontSize;
-        const spacing = 4 * options.scale; // 文本和条形码之间的间距
-
-        // 根据文本位置决定 canvas 高度和 padding
-        // 文字在上方时，只需要下边距；文字在下方时，只需要上边距
-        const isTop = options.textPosition === 'top';
-        const canvasHeight = isTop
-            ? textHeight + spacing // 文字在上方：文本高度 + 下方间距
-            : spacing + textHeight; // 文字在下方：上方间距 + 文本高度
+        const charSpacing = (options.charSpacing ?? 0) * options.scale;
+        const lineHeight = options.lineHeight ?? 1;
+        const lines = String(text).split('\n');
+        const scaledLineHeight = scaledFontSize * lineHeight;
+        const totalTextHeight = scaledLineHeight * lines.length;
+        const canvasHeight = totalTextHeight;
 
         // 设置 canvas 的实际尺寸（高分辨率）
         canvas.width = scaledWidth;
@@ -370,27 +378,49 @@ class BarCodePlugin implements IPluginTempl {
 
         // 设置字体（使用原始尺寸，因为已经通过 scale 缩放）
         ctx.font = `${options.fontSize}px ${options.fontFamily || 'Arial'}`;
-        ctx.textAlign = options.textAlign as CanvasTextAlign;
+        ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#000';
 
-        // 计算文本 x 坐标（根据对齐方式，使用原始尺寸）
-        let x = 0;
-        if (options.textAlign === 'center') {
-            x = options.boxWidth / 2;
-        } else if (options.textAlign === 'right') {
-            x = options.boxWidth;
-        } else {
-            x = 0;
-        }
+        const leadingScaled = Math.max(0, scaledLineHeight - scaledFontSize);
+        const baseY = leadingScaled / 2 / options.scale;
 
-        // 计算文本 y 坐标
-        // 文字在上方时，文本在顶部（y = 0）
-        // 文字在下方时，文本在间距下方（y = spacing / scale）
-        const y = isTop ? 0 : spacing / options.scale;
+        const measureLineWidth = (line: string) => {
+            if (charSpacing <= 0) {
+                return ctx.measureText(line).width;
+            }
+            let sum = 0;
+            for (let i = 0; i < line.length; i++) {
+                sum += ctx.measureText(line[i]).width;
+                if (i > 0) sum += charSpacing / options.scale;
+            }
+            return sum;
+        };
 
-        // 绘制文本
-        ctx.fillText(text, x, y);
+        lines.forEach((line, idx) => {
+            const rawLineWidth = measureLineWidth(line);
+            let lineX = 0;
+            if (options.textAlign === 'center') {
+                lineX = (options.boxWidth - rawLineWidth) / 2;
+            } else if (options.textAlign === 'right') {
+                lineX = options.boxWidth - rawLineWidth;
+            } else {
+                lineX = 0;
+            }
+            const lineY = baseY + idx * (scaledLineHeight / options.scale);
+
+            if (charSpacing <= 0) {
+                ctx.fillText(line, lineX, lineY);
+            } else {
+                let cursorX = lineX;
+                for (let i = 0; i < line.length; i++) {
+                    const ch = line[i];
+                    ctx.fillText(ch, cursorX, lineY);
+                    const w = ctx.measureText(ch).width;
+                    cursorX += w + charSpacing / options.scale;
+                }
+            }
+        });
 
         return canvas;
     }
@@ -418,12 +448,8 @@ class BarCodePlugin implements IPluginTempl {
         const textCanvasHeight = textCanvas.height; // 包含文本和间距的总高度
         const textWidth = textCanvas.width;
 
-        // 计算纯文本高度（不包含间距）
-        // 间距是 4 * scale，文本高度是 fontSize * scale
-        // 但为了准确，我们从 textCanvas 中提取实际文本高度
-        // 由于间距在顶部或底部，文本高度大约是 textCanvasHeight - 4 * scale
-        const spacing = 4 * scale;
-        const actualTextHeight = textCanvasHeight - spacing; // 纯文本高度
+        // 纯文本高度（不包含间距，由 lineHeight 控制）
+        const actualTextHeight = textCanvasHeight;
 
         // 如果提供了目标宽度，使用目标宽度（确保条形码和文本宽度一致，避免拉伸）
         // 否则使用较大的宽度作为最终宽度（高分辨率）
@@ -757,6 +783,33 @@ class BarCodePlugin implements IPluginTempl {
                         delete originMapped.boxWidth;
                     }
                     (imgEl as any)._originSize = { [unit]: originMapped };
+
+                    (imgEl as any).setExtension = async (fields: Record<string, any>) => {
+                        const currentExt = (imgEl.get('extension') as any) || {};
+                        const merged = { ...currentExt, ...(fields || {}) };
+                        imgEl.set('extension', merged);
+                        await this._updateBarcodeImage(imgEl, true);
+                    };
+
+                    (imgEl as any).setExtensionByUnit = async (
+                        fields: Record<string, any>,
+                        dpi?: number
+                    ) => {
+                        const curUnit = getUnit(this.editor);
+                        const { processed, originByUnit } = processOptions(fields || {}, curUnit, dpi);
+                        const precision = (this.editor as any).getPrecision?.();
+                        const formattedOrigin = formatOriginValues(originByUnit[curUnit] || {}, precision);
+
+                        const originSize = (imgEl as any)._originSize || {};
+                        const unitOrigin = originSize[curUnit] || {};
+                        unitOrigin.extension = { ...(unitOrigin.extension || {}), ...formattedOrigin };
+                        (imgEl as any)._originSize = { ...originSize, [curUnit]: unitOrigin };
+
+                        const currentExt = (imgEl.get('extension') as any) || {};
+                        const merged = { ...currentExt, ...processed };
+                        imgEl.set('extension', merged);
+                        await this._updateBarcodeImage(imgEl, true);
+                    };
 
                     this._bindBarcodeEvents(imgEl);
                     resolve(imgEl);

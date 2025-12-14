@@ -383,7 +383,11 @@ class CreateElementPlugin implements IPluginTempl {
         },
         dpi?: number
     ): Promise<fabric.Image> {
-        return (this.editor as any).addBarcode?.(barcodeValue, opts, dpi);
+        const img = await (this.editor as any).addBarcode?.(barcodeValue, opts, dpi);
+        if (img) {
+            this.addSetAndSyncByUnit(img);
+        }
+        return img;
     }
 
     /**
@@ -408,7 +412,11 @@ class CreateElementPlugin implements IPluginTempl {
         },
         dpi?: number
     ): Promise<fabric.Image> {
-        return (this.editor as any).addQrCode?.(codeValue, opts, dpi);
+        const img = await (this.editor as any).addQrCode?.(codeValue, opts, dpi);
+        if (img) {
+            this.addSetAndSyncByUnit(img);
+        }
+        return img;
     }
 
     destroy() {
