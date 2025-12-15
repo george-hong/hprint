@@ -12,6 +12,7 @@ type IPlugin = Pick<
     | 'createEllipse'
     | 'createPolygon'
     | 'createImageFromURL'
+    | 'createImage'
     | 'createBarcode'
     | 'createQrcode'
 >;
@@ -30,6 +31,7 @@ class CreateElementPlugin implements IPluginTempl {
         'createEllipse',
         'createPolygon',
         'createImageFromURL',
+        'createImage',
         'createBarcode',
         'createQrcode',
     ];
@@ -261,11 +263,11 @@ class CreateElementPlugin implements IPluginTempl {
         const line = new fabric.Line(
             [pts[0].x, pts[0].y, pts[1].x, pts[1].y],
             {
+                ...opts,
                 strokeWidth:
                     optProcessed.strokeWidth !== undefined
                         ? optProcessed.strokeWidth
                         : undefined,
-                stroke: opts?.stroke,
             }
         );
 
@@ -346,15 +348,32 @@ class CreateElementPlugin implements IPluginTempl {
             fabric.Image.fromURL(
                 url,
                 (img) => {
+                    const unit = getUnit(this.editor);
+                    const precision = (this.editor as any).getPrecision?.();
+                    this.addSetAndSyncByUnit(img);
                     if (opts) {
-                        const unit = getUnit(this.editor);
                         const singleFields = CreateElementPlugin.lengthFieldConfigs.filter((c) => c.dealMethod === 'single').map((c) => c.field);
                         const { originByUnit } = processOptions(opts, unit, dpi, singleFields);
-                        const precision = (this.editor as any).getPrecision?.();
-                        this.addSetAndSyncByUnit(img);
                         img.set({ ...opts });
                         const formattedOrigin = { [unit]: formatOriginValues(originByUnit[unit] || {}, precision) };
                         (img as any)._originSize = formattedOrigin;
+                    }
+                    const noWidth = !opts?.width;
+                    const noHeight = !opts?.height;
+                    if (noWidth && noHeight) {
+                        const workspace = (this.editor as any).getWorkspase?.();
+                        const workspaceWidth = workspace?.width ?? this.canvas.getWidth() ?? img.width ?? 0;
+                        const naturalWidth = img.width ?? 0;
+                        const naturalHeight = img.height ?? 0;
+                        const targetWidthPx = workspaceWidth / 2;
+                        const scale = naturalWidth > 0 ? targetWidthPx / naturalWidth : 1;
+                        img.set({ scaleX: scale, scaleY: scale });
+                        const originVals = {
+                            width: (this.editor as any).getSizeByUnit?.(targetWidthPx),
+                            height: (this.editor as any).getSizeByUnit?.(naturalHeight * scale),
+                        };
+                        const formatted = { [unit]: formatOriginValues(originVals, precision) };
+                        (img as any)._originSize = formatted;
                     }
                     resolve(img);
                 },
@@ -363,6 +382,79 @@ class CreateElementPlugin implements IPluginTempl {
         });
     }
 
+    async createImage(
+        source: string | File,
+        opts?: {
+            left?: number;
+            top?: number;
+            width?: number;
+            height?: number;
+        },
+        dpi?: number
+    ): Promise<fabric.Image> {
+        return new Promise((resolve) => {
+            let url: string;
+            let shouldRevoke = false;
+            if (typeof source === 'string') {
+                const trimmed = source.trim();
+                if (trimmed.startsWith('data:')) {
+                    url = trimmed;
+                } else {
+                    url = 'data:image/png;base64,' + trimmed;
+                }
+            } else {
+                const objectUrl = URL.createObjectURL(source);
+                url = objectUrl;
+                shouldRevoke = true;
+            }
+            const fromUrlOptions: Record<string, any> | undefined =
+                typeof source === 'string' ? { crossOrigin: 'anonymous' } : undefined;
+            fabric.Image.fromURL(
+                url,
+                (img) => {
+                    const unit = getUnit(this.editor);
+                    const precision = (this.editor as any).getPrecision?.();
+                    this.addSetAndSyncByUnit(img);
+                    if (opts) {
+                        const singleFields = CreateElementPlugin.lengthFieldConfigs
+                            .filter((c) => c.dealMethod === 'single')
+                            .map((c) => c.field);
+                        const { originByUnit } = processOptions(opts, unit, dpi, singleFields);
+                        img.set({ ...opts });
+                        const formattedOrigin = {
+                            [unit]: formatOriginValues(originByUnit[unit] || {}, precision),
+                        };
+                        (img as any)._originSize = formattedOrigin;
+                    }
+                    const noWidth = !opts?.width;
+                    const noHeight = !opts?.height;
+                    if (noWidth && noHeight) {
+                        const workspace = (this.editor as any).getWorkspase?.();
+                        const workspaceWidth = workspace?.width ?? this.canvas.getWidth() ?? img.width ?? 0;
+                        const naturalWidth = img.width ?? 0;
+                        const naturalHeight = img.height ?? 0;
+                        const targetWidthPx = workspaceWidth / 2;
+                        const scale = naturalWidth > 0 ? targetWidthPx / naturalWidth : 1;
+                        img.set({ scaleX: scale, scaleY: scale });
+                        const originVals = {
+                            width: (this.editor as any).getSizeByUnit?.(targetWidthPx),
+                            height: (this.editor as any).getSizeByUnit?.(naturalHeight * scale),
+                        };
+                        const formatted = { [unit]: formatOriginValues(originVals, precision) };
+                        (img as any)._originSize = formatted;
+                    }
+                    if (shouldRevoke) {
+                        try {
+                            URL.revokeObjectURL(url);
+                        } catch (e) {
+                        }
+                    }
+                    resolve(img);
+                },
+                fromUrlOptions
+            );
+        });
+    }
 
     async createBarcode(
         barcodeValue: string,
