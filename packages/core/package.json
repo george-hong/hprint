@@ -30,6 +30,9 @@
     "keywords": [],
     "author": "george-hong",
     "license": "ISC",
+    "publishConfig": {
+        "access": "public"
+    },
     "packageManager": "pnpm@10.20.0",
     "dependencies": {
         "@hprint/shared": "workspace:*",
