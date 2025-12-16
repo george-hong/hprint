@@ -147,11 +147,21 @@ class CreateElementPlugin implements IPluginTempl {
             const dpiVal = hasFieldsArray ? (dpi ?? 96) : (fieldsOrDpi ?? 96);
             const ratio = convertSingle(1, unit, dpiVal) || 1;
             const origin: Record<string, any> = {};
+            const isImageObject = (this as any).type === 'image';
             const targetFields: string[] =
                 hasFieldsArray && (fieldsOrDpi as string[])?.length ? (fieldsOrDpi as string[]) : singleFields;
             targetFields.forEach((field) => {
                 if (field === 'points') return;
-                const currentVal = (this as any).get ? (this as any).get(field) : (this as any)[field];
+                let currentVal: number | undefined;
+                if (isImageObject && (field === 'width' || field === 'height')) {
+                    if (field === 'width') {
+                        currentVal = (this as any).getScaledWidth?.();
+                    } else {
+                        currentVal = (this as any).getScaledHeight?.();
+                    }
+                } else {
+                    currentVal = (this as any).get ? (this as any).get(field) : (this as any)[field];
+                }
                 if (typeof currentVal === 'number' && !isNaN(currentVal)) {
                     origin[field] = editorRef.getSizeByUnit(currentVal);
                 }

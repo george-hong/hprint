@@ -45,12 +45,14 @@ export function applyMmToObject(
 }
 
 export function syncMmFromObject(obj: fabric.Object, dpi?: number, precision?: number) {
+  const isImage = obj.type === 'image';
   const toMm = (v: number | undefined) =>
     v === undefined ? undefined : applyPrecision(LengthConvert.pxToMm(v, dpi), precision);
   const left = obj.left as number | undefined;
   const top = obj.top as number | undefined;
-  const width = obj.width as number | undefined;
-  const height = obj.height as number | undefined;
+  // 图片的width是图片的实际宽度，应取在画布中绘制用的宽度obj.getScaledWidth()
+  const width = isImage ? obj.getScaledWidth() : obj.width as number | undefined;
+  const height = isImage ? obj.getScaledHeight() : obj.height as number | undefined;
   const strokeWidth = obj.strokeWidth as number | undefined;
   const fontSize = (obj as any).fontSize as number | undefined;
 
