@@ -244,7 +244,11 @@ class ResizePlugin implements IPluginTempl {
             if (this.editor.getUnit() !== 'px') {
                 ({ width: curUnitWidth, height: curUnitHeight } = this.editor.getOriginSize());
             }
-            this.editor.emit('sizeChange', { width: curUnitWidth, height: curUnitHeight });
+            this.editor.emit('sizeChange', {
+                width: this.editor.getSizeByUnit(curUnitWidth),
+                height: this.editor.getSizeByUnit(curUnitHeight),
+                unit: this.editor.getUnit()
+            });
         }
     }
 

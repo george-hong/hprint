@@ -218,13 +218,13 @@ class UnitPlugin implements IPluginTempl {
     setSizeByUnit(width: number, height: number, options: { dpi: number, slient?: boolean }) {
         const unit = (this.editor as any).getUnit?.() || 'px';
         if (unit === 'mm') {
-            return this.setSizeMm(width, height, options.dpi);
+            return this.setSizeMm(width, height, options?.dpi);
         }
         if (unit === 'inch') {
             this._syncOriginSize(width, height);
             const wmm = width * LengthConvert.CONSTANTS.INCH_TO_MM;
             const hmm = height * LengthConvert.CONSTANTS.INCH_TO_MM;
-            return this.setSizeMm(wmm, hmm, options.dpi);
+            return this.setSizeMm(wmm, hmm, options?.dpi);
         }
         this.editor.setSize(width, height, { slient: options.slient });
     }
@@ -240,7 +240,7 @@ class UnitPlugin implements IPluginTempl {
                 height: this.canvas.getHeight(),
             };
         }
-
+        debugger
         const ensureMmWidth = originMm.width !== undefined
             ? originMm.width
             : LengthConvert.pxToMm(this.canvas.getWidth(), dpi, { direct: true });

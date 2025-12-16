@@ -25,7 +25,7 @@ type IPlugin = Pick<
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface IEditor extends IPlugin {}
+    interface IEditor extends IPlugin { }
 }
 
 function transformText(objects: any) {
@@ -156,7 +156,7 @@ class ServersPlugin implements IPluginTempl {
                         // 修复导入带水印的json无法清除问题 #359
                         this.editor?.updateDrawStatus &&
                             typeof this.editor.updateDrawStatus ===
-                                'function' &&
+                            'function' &&
                             this.editor.updateDrawStatus(
                                 !!temp['overlayImage']
                             );
@@ -206,6 +206,7 @@ class ServersPlugin implements IPluginTempl {
             'verticalAlign',
             'roundValue',
             'getBase64',
+            '_originSize',
         ];
     }
 
@@ -312,7 +313,7 @@ class ServersPlugin implements IPluginTempl {
     }
 
     staticPreview() {
-        return new Promise<string>((resolve) => {});
+        return new Promise<string>((resolve) => { });
     }
 
     _getSaveSvgOption() {

@@ -91,9 +91,11 @@ class WorkspacePlugin implements IPluginTempl {
                 if (workspace.width && workspace.height) {
                     this.setSize(workspace.width, workspace.height);
                     this.editor.emit(
-                        'sizeChange',
-                        workspace.width,
-                        workspace.height
+                        'sizeChange', {
+                        width: this.editor.getSizeByUnit(workspace.width),
+                        height: this.editor.getSizeByUnit(workspace.height),
+                        unit: this.editor.getUnit(),
+                    }
                     );
                 }
             }
@@ -194,9 +196,11 @@ class WorkspacePlugin implements IPluginTempl {
         this.workspace.set('width', width);
         this.workspace.set('height', height);
         options?.slient !== true && this.editor.emit(
-            'sizeChange',
-            this.workspace.width,
-            this.workspace.height
+            'sizeChange', {
+            width: this.editor.getSizeByUnit(width),
+            height: this.editor.getSizeByUnit(height),
+            unit: this.editor.getUnit(),
+        }
         );
         this.auto();
     }
