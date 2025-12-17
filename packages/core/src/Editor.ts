@@ -33,6 +33,7 @@ class Editor extends EventEmitter {
         'hookSaveBefore',
         'hookSaveAfter',
         'hookTransform',
+        'hookTransformObjectEnd',
     ];
     public hooksEntity: {
         [propName: string]: AsyncSeriesHook<any, any>;

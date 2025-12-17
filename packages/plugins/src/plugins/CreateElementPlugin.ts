@@ -502,15 +502,9 @@ class CreateElementPlugin implements IPluginTempl {
             top?: number;
             width?: number;
             height?: number;
-            margin?: number;
-            errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
-            dotsColor?: string;
-            dotsType?: string;
-            cornersSquareColor?: string;
-            cornersSquareType?: string;
-            cornersDotColor?: string;
-            cornersDotType?: string;
-            background?: string;
+            ecLevel?: 'L' | 'M' | 'Q' | 'H';
+            color?: string;
+            bgColor?: string;
         },
         dpi?: number
     ): Promise<fabric.Image> {

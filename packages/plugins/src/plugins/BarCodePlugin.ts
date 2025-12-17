@@ -47,8 +47,41 @@ class BarCodePlugin implements IPluginTempl {
         }
     }
 
+    async hookTransformObjectEnd({ originObject, fabricObject }: { originObject: any, fabricObject: any }) {
+        if (originObject.extensionType === 'qrcode') {
+            this._bindQrCodeEvents(fabricObject);
+        }
+    }
+
     // 绑定条形码对象的事件监听器
     private _bindBarcodeEvents(imgEl: fabric.Image) {
+        (imgEl as any).setExtension = async (fields: Record<string, any>) => {
+            const currentExt = (imgEl.get('extension') as any) || {};
+            const merged = { ...currentExt, ...(fields || {}) };
+            imgEl.set('extension', merged);
+            await this._updateBarcodeImage(imgEl, true);
+        };
+
+        (imgEl as any).setExtensionByUnit = async (
+            fields: Record<string, any>,
+            dpi?: number
+        ) => {
+            const curUnit = getUnit(this.editor);
+            const { processed, originByUnit } = processOptions(fields || {}, curUnit, dpi);
+            const precision = (this.editor as any).getPrecision?.();
+            const formattedOrigin = formatOriginValues(originByUnit[curUnit] || {}, precision);
+
+            const originSize = (imgEl as any)._originSize || {};
+            const unitOrigin = originSize[curUnit] || {};
+            unitOrigin.extension = { ...(unitOrigin.extension || {}), ...formattedOrigin };
+            (imgEl as any)._originSize = { ...originSize, [curUnit]: unitOrigin };
+
+            const currentExt = (imgEl.get('extension') as any) || {};
+            const merged = { ...currentExt, ...processed };
+            imgEl.set('extension', merged);
+            await this._updateBarcodeImage(imgEl, true);
+        };
+
         // 移除旧的事件监听器（如果存在）
         imgEl.off('modified');
         imgEl.off('scaled');
@@ -783,33 +816,6 @@ class BarCodePlugin implements IPluginTempl {
                         delete originMapped.boxWidth;
                     }
                     (imgEl as any)._originSize = { [unit]: originMapped };
-
-                    (imgEl as any).setExtension = async (fields: Record<string, any>) => {
-                        const currentExt = (imgEl.get('extension') as any) || {};
-                        const merged = { ...currentExt, ...(fields || {}) };
-                        imgEl.set('extension', merged);
-                        await this._updateBarcodeImage(imgEl, true);
-                    };
-
-                    (imgEl as any).setExtensionByUnit = async (
-                        fields: Record<string, any>,
-                        dpi?: number
-                    ) => {
-                        const curUnit = getUnit(this.editor);
-                        const { processed, originByUnit } = processOptions(fields || {}, curUnit, dpi);
-                        const precision = (this.editor as any).getPrecision?.();
-                        const formattedOrigin = formatOriginValues(originByUnit[curUnit] || {}, precision);
-
-                        const originSize = (imgEl as any)._originSize || {};
-                        const unitOrigin = originSize[curUnit] || {};
-                        unitOrigin.extension = { ...(unitOrigin.extension || {}), ...formattedOrigin };
-                        (imgEl as any)._originSize = { ...originSize, [curUnit]: unitOrigin };
-
-                        const currentExt = (imgEl.get('extension') as any) || {};
-                        const merged = { ...currentExt, ...processed };
-                        imgEl.set('extension', merged);
-                        await this._updateBarcodeImage(imgEl, true);
-                    };
 
                     this._bindBarcodeEvents(imgEl);
                     resolve(imgEl);

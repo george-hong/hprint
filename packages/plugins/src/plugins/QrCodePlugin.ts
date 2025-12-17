@@ -1,10 +1,10 @@
 import { fabric } from '@hprint/core';
-import QRCodeStyling from 'qr-code-styling';
+import bwipjs from 'bwip-js';
 import { utils } from '@hprint/shared';
 import { getUnit, processOptions, formatOriginValues } from '../utils/units';
 import type { IEditor, IPluginTempl } from '@hprint/core';
 
-type IPlugin = Pick<QrCodePlugin, 'addQrCode' | 'setQrCode' | 'getQrCodeTypes'>;
+type IPlugin = Pick<QrCodePlugin, 'addQrCode' | 'setQrCode'>;
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -45,30 +45,12 @@ class QrParamsDefaults {
     height = 300;
     type = 'canvas' as const;
     data = ' ';
-    margin = 10;
-    qrOptions = {
-        errorCorrectionLevel: 'M' as const,
-    };
-    dotsOptions = {
-        color: '#000000',
-        type: 'square' as const,
-    };
-    cornersSquareOptions = {
-        color: '#000000',
-        type: 'square' as const,
-    };
-    cornersDotOptions = {
-        color: '#000000',
-        type: 'square' as const,
-    };
-    backgroundOptions = {
-        color: '#ffffff',
-    };
+    ecLevel = 'M' as const;
 }
 
 class QrCodePlugin implements IPluginTempl {
     static pluginName = 'QrCodePlugin';
-    static apis = ['addQrCode', 'setQrCode', 'getQrCodeTypes'];
+    static apis = ['addQrCode', 'setQrCode'];
     constructor(
         public canvas: fabric.Canvas,
         public editor: IEditor
@@ -82,40 +64,50 @@ class QrCodePlugin implements IPluginTempl {
         }
     }
 
+    async hookTransformObjectEnd({ originObject, fabricObject }: { originObject: any, fabricObject: any }) {
+        if (originObject.extensionType === 'qrcode') {
+            this._bindQrCodeEvents(fabricObject);
+        }
+    }
+
     async _getBase64Str(options: any): Promise<string> {
         const zoom = this.canvas.getZoom() || 1;
         const dpr = (window && (window as any).devicePixelRatio) || 1;
-        let scale = zoom * dpr;
-        const maxScale = 4;
-        if (!Number.isFinite(scale) || scale <= 0) scale = 1;
-        scale = Math.min(scale, maxScale);
 
-        const scaledOptions = {
-            ...options,
-            width: Math.round((options.width || 300) * scale),
-            height: Math.round((options.height || options.width || 300) * scale),
-            margin: Math.round((options.margin || 0) * scale),
-        };
-        const qrCode = new QRCodeStyling(scaledOptions);
-        const blob = await qrCode.getRawData('png');
-        if (!blob) return '';
-        const base64Str = (await utils.blobToBase64(blob)) as string;
-        return base64Str || '';
+        const targetWidth = (options.width || 300) * zoom * dpr;
+        // 估算 module 数量，QR Code 通常在 21-177 之间，取一个中间值作为估算基础
+        const estimatedModules = 35;
+        let bwipScale = Math.ceil(targetWidth / estimatedModules);
+        if (bwipScale < 2) bwipScale = 2;
+
+        const canvas = document.createElement('canvas');
+
+        const barColor = options.color?.replace('#', '') || '000000';
+        const bgColor = options.bgColor?.replace('#', '') || 'ffffff';
+        const ecLevel = options.ecLevel || 'M';
+
+        try {
+            bwipjs.toCanvas(canvas, {
+                bcid: 'qrcode',
+                text: options.data || ' ',
+                scale: bwipScale,
+                eclevel: ecLevel,
+                barcolor: barColor,
+                backgroundcolor: bgColor,
+            } as any);
+            return canvas.toDataURL('image/png');
+        } catch (error) {
+            console.error('QR Code generation failed:', error);
+            return '';
+        }
     }
 
     _defaultBarcodeOption() {
         return {
-            value: 'https://kuaitu.cc',
+            value: '@hprint/print',
             width: 300,
             margin: 10,
-            errorCorrectionLevel: 'M',
-            dotsColor: '#000000',
-            dotsType: 'square',
-            cornersSquareColor: '#000000',
-            cornersSquareType: 'square',
-            cornersDotColor: '#000000',
-            cornersDotType: 'square',
-            background: '#ffffff',
+            ecLevel: 'M',
         };
     }
 
@@ -128,43 +120,15 @@ class QrCodePlugin implements IPluginTempl {
         const size = hasW && hasH
             ? Math.max(option.width, option.height)
             : (hasW ? option.width : (hasH ? option.height : undefined));
-        const base = {
+        const options = {
+            ...option,
             width: size,
             height: size ?? option.width,
             type: 'canvas',
             data: option.value != null ? String(option.value) : undefined,
             margin: option.margin,
-            qrOptions: {
-                errorCorrectionLevel: option.errorCorrectionLevel,
-            },
-            dotsOptions: {
-                color: option.dotsColor,
-                type: option.dotsType,
-            },
-            cornersSquareOptions: {
-                color: option.cornersSquareColor,
-                type: option.cornersSquareType,
-            },
-            cornersDotOptions: {
-                color: option.cornersDotColor,
-                type: option.cornersDotType,
-            },
-            backgroundOptions: {
-                color: option.background,
-            },
         };
-        const defaultParams = new QrParamsDefaults();
-        const merged = Object.assign({}, defaultParams, base);
-        merged.qrOptions = Object.assign({}, defaultParams.qrOptions, base.qrOptions);
-        merged.dotsOptions = Object.assign({}, defaultParams.dotsOptions, base.dotsOptions);
-        merged.cornersSquareOptions = Object.assign({}, defaultParams.cornersSquareOptions, base.cornersSquareOptions);
-        merged.cornersDotOptions = Object.assign({}, defaultParams.cornersDotOptions, base.cornersDotOptions);
-        merged.backgroundOptions = Object.assign({}, defaultParams.backgroundOptions, base.backgroundOptions);
-
-        if (!merged.data || (typeof merged.data === 'string' && merged.data.trim() === '')) {
-            merged.data = defaultParams.data;
-        }
-        return merged;
+        return options;
     }
 
     private async _updateQrCodeImage(imgEl: fabric.Image, immediate = false) {
@@ -222,6 +186,44 @@ class QrCodePlugin implements IPluginTempl {
     }
 
     /**
+     * 绑定二维码相关事件与方法
+     */
+    private _bindQrCodeEvents(imgEl: fabric.Image) {
+        (imgEl as any).setExtension = async (fields: Record<string, any>) => {
+            const currentExt = (imgEl.get('extension') as any) || {};
+            const merged = { ...currentExt, ...(fields || {}) };
+            imgEl.set('extension', merged);
+            await this._updateQrCodeImage(imgEl, true);
+        };
+        (imgEl as any).setExtensionByUnit = async (
+            fields: Record<string, any>,
+            dpi?: number
+        ) => {
+            const curUnit = getUnit(this.editor);
+            const { processed, originByUnit } = processOptions(fields || {}, curUnit, dpi);
+            const precision = (this.editor as any).getPrecision?.();
+            const formattedOrigin = formatOriginValues(originByUnit[curUnit] || {}, precision);
+            const originSize = (imgEl as any)._originSize || {};
+            const unitOrigin = originSize[curUnit] || {};
+            unitOrigin.extension = { ...(unitOrigin.extension || {}), ...formattedOrigin };
+            (imgEl as any)._originSize = { ...originSize, [curUnit]: unitOrigin };
+            const currentExt = (imgEl.get('extension') as any) || {};
+            const merged = { ...currentExt, ...processed };
+            imgEl.set('extension', merged);
+            await this._updateQrCodeImage(imgEl, true);
+        };
+        (imgEl as any).off?.('modified');
+        (imgEl as any).off?.('scaled');
+        imgEl.on('modified', async (event: any) => {
+            const target = (event?.target as fabric.Image) || imgEl;
+            await this._updateQrCodeImage(target, true);
+        });
+        imgEl.on('scaled', async () => {
+            await this._updateQrCodeImage(imgEl, true);
+        });
+    }
+
+    /**
      * 创建二维码，支持传入内容与样式，进行单位转换并存储原始尺寸
      */
     async addQrCode(
@@ -231,15 +233,9 @@ class QrCodePlugin implements IPluginTempl {
             top?: number;
             width?: number;
             height?: number;
-            margin?: number;
-            errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
-            dotsColor?: string;
-            dotsType?: string;
-            cornersSquareColor?: string;
-            cornersSquareType?: string;
-            cornersDotColor?: string;
-            cornersDotType?: string;
-            background?: string;
+            ecLevel?: 'L' | 'M' | 'Q' | 'H';
+            color: string;
+            bgColor: string;
         },
         dpi?: number
     ): Promise<fabric.Image> {
@@ -250,19 +246,7 @@ class QrCodePlugin implements IPluginTempl {
         };
         const unit = getUnit(this.editor);
         const { processed, originByUnit } = processOptions(option, unit, dpi, ['left', 'top', 'width', 'height', 'margin']);
-        const finalOptionBase = { ...option, ...processed };
-        const finalOption = {
-            ...finalOptionBase,
-            width: Number.isFinite(finalOptionBase.width) && finalOptionBase.width > 0
-                ? finalOptionBase.width
-                : this._defaultBarcodeOption().width,
-            height: Number.isFinite(finalOptionBase.height) && finalOptionBase.height > 0
-                ? finalOptionBase.height
-                : finalOptionBase.width,
-            margin: Number.isFinite(finalOptionBase.margin) && finalOptionBase.margin >= 0
-                ? finalOptionBase.margin
-                : this._defaultBarcodeOption().margin,
-        };
+        const finalOption = { ...option, ...processed };
         const paramsOption = this._paramsToOption(finalOption);
         const url = await this._getBase64Str(paramsOption);
         return new Promise<fabric.Image>((resolve) => {
@@ -302,38 +286,7 @@ class QrCodePlugin implements IPluginTempl {
                         originMapped.height = originMapped.width;
                     }
                     (imgEl as any)._originSize = { [unit]: originMapped };
-                    (imgEl as any).setExtension = async (fields: Record<string, any>) => {
-                        const currentExt = (imgEl.get('extension') as any) || {};
-                        const merged = { ...currentExt, ...(fields || {}) };
-                        imgEl.set('extension', merged);
-                        await this._updateQrCodeImage(imgEl, true);
-                    };
-                    (imgEl as any).setExtensionByUnit = async (
-                        fields: Record<string, any>,
-                        dpi?: number
-                    ) => {
-                        const curUnit = getUnit(this.editor);
-                        const { processed, originByUnit } = processOptions(fields || {}, curUnit, dpi);
-                        const precision = (this.editor as any).getPrecision?.();
-                        const formattedOrigin = formatOriginValues(originByUnit[curUnit] || {}, precision);
-                        const originSize = (imgEl as any)._originSize || {};
-                        const unitOrigin = originSize[curUnit] || {};
-                        unitOrigin.extension = { ...(unitOrigin.extension || {}), ...formattedOrigin };
-                        (imgEl as any)._originSize = { ...originSize, [curUnit]: unitOrigin };
-                        const currentExt = (imgEl.get('extension') as any) || {};
-                        const merged = { ...currentExt, ...processed };
-                        imgEl.set('extension', merged);
-                        await this._updateQrCodeImage(imgEl, true);
-                    };
-                    (imgEl as any).off?.('modified');
-                    (imgEl as any).off?.('scaled');
-                    imgEl.on('modified', async (event: any) => {
-                        const target = (event?.target as fabric.Image) || imgEl;
-                        await this._updateQrCodeImage(target, true);
-                    });
-                    imgEl.on('scaled', async () => {
-                        await this._updateQrCodeImage(imgEl, true);
-                    });
+                    this._bindQrCodeEvents(imgEl);
                     resolve(imgEl);
                 },
                 { crossOrigin: 'anonymous' }
@@ -356,15 +309,7 @@ class QrCodePlugin implements IPluginTempl {
                         extension: { ...option },
                     });
                     imgEl.scaleToWidth(activeObject.getScaledWidth());
-                    imgEl.off('modified');
-                    imgEl.off('scaled');
-                    imgEl.on('modified', async (event: any) => {
-                        const target = (event?.target as fabric.Image) || imgEl;
-                        await this._updateQrCodeImage(target, true);
-                    });
-                    imgEl.on('scaled', async () => {
-                        await this._updateQrCodeImage(imgEl, true);
-                    });
+                    this._bindQrCodeEvents(imgEl);
                     this.editor.del();
                     this.canvas.add(imgEl);
                     this.canvas.setActiveObject(imgEl);
@@ -374,15 +319,6 @@ class QrCodePlugin implements IPluginTempl {
         } catch (error) {
             console.log(error);
         }
-    }
-
-    getQrCodeTypes() {
-        return {
-            DotsType: Object.values(DotsType),
-            CornersType: Object.values(CornersType),
-            cornersDotType: Object.values(cornersDotType),
-            errorCorrectionLevelType: Object.values(errorCorrectionLevelType),
-        };
     }
 
     destroy() {

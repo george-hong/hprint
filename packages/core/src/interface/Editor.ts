@@ -2,7 +2,7 @@ import type Editor from '@hprint/core';
 
 // IEditor类型包含插件实例，Editor不包含插件实例
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface IEditor extends Editor {}
+export interface IEditor extends Editor { }
 
 // 生命周期事件类型
 export type IEditorHooksType =
@@ -10,7 +10,8 @@ export type IEditorHooksType =
     | 'hookImportAfter'
     | 'hookSaveBefore'
     | 'hookSaveAfter'
-    | 'hookTransform';
+    | 'hookTransform'
+    | 'hookTransformObjectEnd';
 
 // 插件实例
 export declare class IPluginTempl {
@@ -28,6 +29,7 @@ export declare class IPluginTempl {
     hookSaveBefore?: (...args: unknown[]) => Promise<unknown>;
     hookSaveAfter?: (...args: unknown[]) => Promise<unknown>;
     hookTransform?: (...args: unknown[]) => Promise<unknown>;
+    hookTransformObjectEnd?: (...args: unknown[]) => Promise<unknown>;
     [propName: string]: any;
     canvas?: fabric.Canvas;
     editor?: IEditor;
@@ -42,7 +44,7 @@ declare class IPluginClass2 extends IPluginTempl {
 }
 // 插件class
 export declare interface IPluginClass {
-    new (
+    new(
         canvas: fabric.Canvas,
         editor: Editor,
         options?: IPluginOption

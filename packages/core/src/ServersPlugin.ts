@@ -145,27 +145,38 @@ class ServersPlugin implements IPluginTempl {
         jsonFile = JSON.stringify(tempTransform);
         // 加载前钩子
         this.editor.hooksEntity.hookImportBefore.callAsync(jsonFile, () => {
-            this.canvas.loadFromJSON(jsonFile, () => {
-                // 把i-text对应的path加上
-                this.renderITextPath(textPaths);
-                this.canvas.renderAll();
-                // 加载后钩子
-                this.editor.hooksEntity.hookImportAfter.callAsync(
-                    jsonFile,
-                    () => {
-                        // 修复导入带水印的json无法清除问题 #359
-                        this.editor?.updateDrawStatus &&
-                            typeof this.editor.updateDrawStatus ===
-                            'function' &&
-                            this.editor.updateDrawStatus(
-                                !!temp['overlayImage']
-                            );
-                        this.canvas.renderAll();
-                        callback && callback();
-                        this.editor.emit('loadJson');
-                    }
-                );
-            });
+            this.canvas.loadFromJSON(
+                jsonFile,
+                () => {
+                    // 把i-text对应的path加上
+                    this.renderITextPath(textPaths);
+                    this.canvas.renderAll();
+                    // 加载后钩子
+                    this.editor.hooksEntity.hookImportAfter.callAsync(
+                        jsonFile,
+                        () => {
+                            // 修复导入带水印的json无法清除问题 #359
+                            this.editor?.updateDrawStatus &&
+                                typeof this.editor.updateDrawStatus ===
+                                'function' &&
+                                this.editor.updateDrawStatus(
+                                    !!temp['overlayImage']
+                                );
+                            this.canvas.renderAll();
+                            callback && callback();
+                            this.editor.emit('loadJson');
+                        }
+                    );
+                },
+                (originObject: any, fabricObject: fabric.Object) => {
+                    this.editor.hooksEntity.hookTransformObjectEnd.callAsync(
+                        { originObject, fabricObject },
+                        () => {
+                            this.canvas.renderAll();
+                        }
+                    );
+                }
+            );
         });
     }
 

@@ -240,7 +240,6 @@ class UnitPlugin implements IPluginTempl {
                 height: this.canvas.getHeight(),
             };
         }
-        debugger
         const ensureMmWidth = originMm.width !== undefined
             ? originMm.width
             : LengthConvert.pxToMm(this.canvas.getWidth(), dpi, { direct: true });
