@@ -11,43 +11,6 @@ declare module '@hprint/core' {
     interface IEditor extends IPlugin { }
 }
 
-// 二维码生成参数
-
-enum DotsType {
-    rounded = 'rounded',
-    dots = 'dots',
-    classy = 'classy',
-    classy_rounded = 'classy-rounded',
-    square = 'square',
-    extra_rounded = 'extra-rounded',
-}
-
-enum CornersType {
-    dot = 'dot',
-    square = 'square',
-    extra_rounded = 'extra-rounded',
-}
-
-enum cornersDotType {
-    dot = 'dot',
-    square = 'square',
-}
-
-enum errorCorrectionLevelType {
-    L = 'L',
-    M = 'M',
-    Q = 'Q',
-    H = 'H',
-}
-
-class QrParamsDefaults {
-    width = 300;
-    height = 300;
-    type = 'canvas' as const;
-    data = ' ';
-    ecLevel = 'M' as const;
-}
-
 class QrCodePlugin implements IPluginTempl {
     static pluginName = 'QrCodePlugin';
     static apis = ['addQrCode', 'setQrCode'];
@@ -59,8 +22,26 @@ class QrCodePlugin implements IPluginTempl {
     async hookTransform(object: any) {
         if (object.extensionType === 'qrcode') {
             const paramsOption = this._paramsToOption(object.extension);
-            const url = await this._getBase64Str(paramsOption);
+            const { url, width, height } = await this._getQrCodeResult(paramsOption);
             object.src = url;
+
+            // 修复 base64 生成后，没有拉伸到容器大小的问题
+            if (width > 0 && height > 0) {
+                const oldWidth = object.width || 0;
+                const oldHeight = object.height || 0;
+                const oldScaleX = object.scaleX || 1;
+                const oldScaleY = object.scaleY || 1;
+
+                const displayWidth = oldWidth * oldScaleX;
+                const displayHeight = oldHeight * oldScaleY;
+
+                if (displayWidth > 0 && displayHeight > 0) {
+                    object.width = width;
+                    object.height = height;
+                    object.scaleX = displayWidth / width;
+                    object.scaleY = displayHeight / height;
+                }
+            }
         }
     }
 
@@ -70,14 +51,16 @@ class QrCodePlugin implements IPluginTempl {
         }
     }
 
-    async _getBase64Str(options: any): Promise<string> {
+    async _getQrCodeResult(options: any): Promise<{ url: string; width: number; height: number }> {
         const zoom = this.canvas.getZoom() || 1;
         const dpr = (window && (window as any).devicePixelRatio) || 1;
 
         const targetWidth = (options.width || 300) * zoom * dpr;
         // 估算 module 数量，QR Code 通常在 21-177 之间，取一个中间值作为估算基础
         const estimatedModules = 35;
+        // 计算需要的缩放比例，确保生成的图片足够大
         let bwipScale = Math.ceil(targetWidth / estimatedModules);
+        // 保证最小缩放比例，避免过小
         if (bwipScale < 2) bwipScale = 2;
 
         const canvas = document.createElement('canvas');
@@ -95,11 +78,20 @@ class QrCodePlugin implements IPluginTempl {
                 barcolor: barColor,
                 backgroundcolor: bgColor,
             } as any);
-            return canvas.toDataURL('image/png');
+            return {
+                url: canvas.toDataURL('image/png'),
+                width: canvas.width,
+                height: canvas.height
+            };
         } catch (error) {
             console.error('QR Code generation failed:', error);
-            return '';
+            return { url: '', width: 0, height: 0 };
         }
+    }
+
+    async _getBase64Str(options: any): Promise<string> {
+        const { url } = await this._getQrCodeResult(options);
+        return url;
     }
 
     _defaultBarcodeOption() {
@@ -221,6 +213,7 @@ class QrCodePlugin implements IPluginTempl {
         imgEl.on('scaled', async () => {
             await this._updateQrCodeImage(imgEl, true);
         });
+
     }
 
     /**
