@@ -9,7 +9,7 @@ type IPlugin = Pick<LockPlugin, 'lock' | 'unLock'>;
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface IEditor extends IPlugin {}
+    interface IEditor extends IPlugin { }
 }
 
 enum ItypeKey {
@@ -181,6 +181,8 @@ export default class LockPlugin implements IPluginTempl {
 
     hookImportAfter() {
         this.canvas.forEachObject((obj: fabric.Object) => {
+            // 避免导入JSON后选中画布
+            if (obj.id === 'workspace') return;
             if (obj.hasControls === false && obj.selectable === false) {
                 this.canvas.setActiveObject(obj);
                 this.lock();
