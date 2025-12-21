@@ -15,7 +15,7 @@ type IPlugin = Pick<
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface IEditor extends IPlugin {}
+    interface IEditor extends IPlugin { }
 }
 
 class GroupAlignPlugin implements IPluginTempl {
@@ -34,7 +34,7 @@ class GroupAlignPlugin implements IPluginTempl {
     constructor(
         public canvas: fabric.Canvas,
         public editor: IEditor
-    ) {}
+    ) { }
 
     left() {
         const { canvas } = this;

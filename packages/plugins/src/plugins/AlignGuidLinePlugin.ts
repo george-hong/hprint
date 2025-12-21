@@ -13,18 +13,24 @@ declare interface HorizontalLine {
 }
 
 class AlignGuidLinePlugin implements IPluginTempl {
+    static pluginName = 'AlignGuidLinePlugin';
+    static apis = ['changeSwitch'];
     defautOption = {
         color: 'rgba(255,95,95,1)',
         width: 1,
     };
-    static pluginName = 'AlignGuidLinePlugin';
     dragMode = false;
+    switch!: boolean;
     constructor(
         public canvas: fabric.Canvas,
-        public editor: IEditor
+        public editor: IEditor,
+        options?: {
+            switch?: boolean;
+        }
     ) {
         this.dragMode = false;
         this.init();
+        this.switch = options?.switch ?? true;
     }
     init() {
         const { canvas } = this;
@@ -75,7 +81,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
             value2 = Math.round(value2);
             for (
                 let i = value1 - aligningLineMargin,
-                    len = value1 + aligningLineMargin;
+                len = value1 + aligningLineMargin;
                 i <= len;
                 i++
             ) {
@@ -99,10 +105,11 @@ class AlignGuidLinePlugin implements IPluginTempl {
                     activeWidth = e.target.getScaledWidth();
                     activeHeight = e.target.getScaledHeight();
                 }
-            } catch (e) {}
+            } catch (e) { }
         });
 
         canvas.on('object:moving', (e) => {
+            if (!this.switch) return;
             if (viewportTransform === undefined || e.target === undefined)
                 return;
 
@@ -130,7 +137,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
 
             if (!transform) return;
 
-            for (let i = canvasObjects.length; i--; ) {
+            for (let i = canvasObjects.length; i--;) {
                 // eslint-disable-next-line no-continue
                 if (canvasObjects[i] === activeObject) continue;
 
@@ -161,19 +168,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
                     activeObject.setPositionByOrigin(
                         new fabric.Point(objectLeft, activeObjectTop),
@@ -192,19 +199,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
                     activeObject.setPositionByOrigin(
                         new fabric.Point(activeObjectLeft, objectTop),
@@ -228,19 +235,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
                     _elReachLeft =
                         objectLeft - objectWidth / 2 + activeObjectWidth / 2;
@@ -271,19 +278,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
                     _elReachLeft =
                         objectLeft + objectWidth / 2 - activeObjectWidth / 2;
@@ -313,19 +320,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
                     _elReachTop =
                         objectTop - objectHeight / 2 + activeObjectHeight / 2;
@@ -356,19 +363,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
                     _elReachTop =
                         objectTop + objectHeight / 2 - activeObjectHeight / 2;
@@ -397,19 +404,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
 
                     _elReachLeft =
@@ -439,19 +446,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
                     _elReachLeft =
                         objectLeft + objectWidth / 2 + activeObjectWidth / 2;
@@ -481,19 +488,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
                     _elReachTop =
                         objectTop - objectHeight / 2 - activeObjectHeight / 2;
@@ -522,19 +529,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
                     _elReachTop =
                         objectTop + objectHeight / 2 + activeObjectHeight / 2;
@@ -589,7 +596,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
             activeObject.set('hasControls', false);
             if (!transform) return;
 
-            for (let i = canvasObjects.length; i--; ) {
+            for (let i = canvasObjects.length; i--;) {
                 // eslint-disable-next-line no-continue
                 if (canvasObjects[i] === activeObject) continue;
 
@@ -620,19 +627,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
                 }
 
@@ -651,19 +658,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
 
                     let leftRight = new Map([
@@ -675,8 +682,8 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         activeObject.setPositionByOrigin(
                             new fabric.Point(
                                 objectLeft -
-                                    objectWidth / 2 +
-                                    activeObjectWidth / 2,
+                                objectWidth / 2 +
+                                activeObjectWidth / 2,
                                 activeObjectTop
                             ),
                             'center',
@@ -689,7 +696,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
                                 (objectLeft - objectWidth / 2) +
                                 activeWidth) *
                                 activeObject.scaleX) /
-                                activeObject.getScaledWidth()
+                            activeObject.getScaledWidth()
                         );
                         break;
                     }
@@ -710,19 +717,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
 
                     let Right = new Map([
@@ -739,7 +746,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
                                 (activeLeft + activeWidth) +
                                 activeWidth) *
                                 activeObject.scaleX) /
-                                activeObject.getScaledWidth()
+                            activeObject.getScaledWidth()
                         );
                         break;
                     }
@@ -755,19 +762,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
                 }
 
@@ -785,19 +792,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
 
                     let bottomRight = new Map([
@@ -811,8 +818,8 @@ class AlignGuidLinePlugin implements IPluginTempl {
                             new fabric.Point(
                                 activeObjectLeft,
                                 objectTop -
-                                    objectHeight / 2 +
-                                    activeObjectHeight / 2
+                                objectHeight / 2 +
+                                activeObjectHeight / 2
                             ),
                             'center',
                             'center'
@@ -824,7 +831,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
                                 activeHeight -
                                 (objectTop - objectHeight / 2)) *
                                 activeObject.scaleY) /
-                                activeObject.getScaledHeight()
+                            activeObject.getScaledHeight()
                         );
                         break;
                     }
@@ -844,19 +851,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
 
                     let bottom = new Map([
@@ -872,7 +879,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
                                 (activeTop + activeHeight) +
                                 activeHeight) *
                                 activeObject.scaleY) /
-                                activeObject.getScaledHeight()
+                            activeObject.getScaledHeight()
                         );
                         break;
                     }
@@ -892,19 +899,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
 
                     let right = new Map([
@@ -919,7 +926,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
                                 objectWidth / 2 -
                                 activeObject.left) *
                                 activeObject.scaleX) /
-                                activeObject.getScaledWidth()
+                            activeObject.getScaledWidth()
                         );
                         break;
                     }
@@ -938,19 +945,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         y1:
                             objectTop < activeObjectTop
                                 ? objectTop -
-                                  objectHeight / 2 -
-                                  aligningLineOffset
+                                objectHeight / 2 -
+                                aligningLineOffset
                                 : objectTop +
-                                  objectHeight / 2 +
-                                  aligningLineOffset,
+                                objectHeight / 2 +
+                                aligningLineOffset,
                         y2:
                             activeObjectTop > objectTop
                                 ? activeObjectTop +
-                                  activeObjectHeight / 2 +
-                                  aligningLineOffset
+                                activeObjectHeight / 2 +
+                                aligningLineOffset
                                 : activeObjectTop -
-                                  activeObjectHeight / 2 -
-                                  aligningLineOffset,
+                                activeObjectHeight / 2 -
+                                aligningLineOffset,
                     });
 
                     let leftRight = new Map([
@@ -962,8 +969,8 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         activeObject.setPositionByOrigin(
                             new fabric.Point(
                                 objectLeft +
-                                    objectWidth / 2 +
-                                    activeObjectWidth / 2,
+                                objectWidth / 2 +
+                                activeObjectWidth / 2,
                                 activeObjectTop
                             ),
                             'center',
@@ -976,7 +983,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
                                 activeWidth -
                                 (objectLeft + objectWidth / 2)) *
                                 activeObject.scaleX) /
-                                activeObject.getScaledWidth()
+                            activeObject.getScaledWidth()
                         );
                         break;
                     }
@@ -995,19 +1002,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
 
                     let bottom = new Map([
@@ -1020,7 +1027,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
                             'scaleY',
                             ((objectTop - objectHeight / 2 - activeObject.top) *
                                 activeObject.scaleY) /
-                                activeObject.getScaledHeight()
+                            activeObject.getScaledHeight()
                         );
                         break;
                     }
@@ -1039,19 +1046,19 @@ class AlignGuidLinePlugin implements IPluginTempl {
                         x1:
                             objectLeft < activeObjectLeft
                                 ? objectLeft -
-                                  objectWidth / 2 -
-                                  aligningLineOffset
+                                objectWidth / 2 -
+                                aligningLineOffset
                                 : objectLeft +
-                                  objectWidth / 2 +
-                                  aligningLineOffset,
+                                objectWidth / 2 +
+                                aligningLineOffset,
                         x2:
                             activeObjectLeft > objectLeft
                                 ? activeObjectLeft +
-                                  activeObjectWidth / 2 +
-                                  aligningLineOffset
+                                activeObjectWidth / 2 +
+                                aligningLineOffset
                                 : activeObjectLeft -
-                                  activeObjectWidth / 2 -
-                                  aligningLineOffset,
+                                activeObjectWidth / 2 -
+                                aligningLineOffset,
                     });
 
                     let bottomRight = new Map([
@@ -1065,8 +1072,8 @@ class AlignGuidLinePlugin implements IPluginTempl {
                             new fabric.Point(
                                 activeObjectLeft,
                                 objectTop +
-                                    objectHeight / 2 +
-                                    activeObjectHeight / 2
+                                objectHeight / 2 +
+                                activeObjectHeight / 2
                             ),
                             'center',
                             'center'
@@ -1078,7 +1085,7 @@ class AlignGuidLinePlugin implements IPluginTempl {
                                 activeHeight -
                                 (objectTop + objectHeight / 2)) *
                                 activeObject.scaleY) /
-                                activeObject.getScaledHeight()
+                            activeObject.getScaledHeight()
                         );
 
                         break;
@@ -1100,12 +1107,12 @@ class AlignGuidLinePlugin implements IPluginTempl {
             ctx.lineWidth = This.defautOption.width;
             ctx.strokeStyle = This.defautOption.color;
 
-            for (let i = verticalLines.length; i--; ) {
+            for (let i = verticalLines.length; i--;) {
                 if (verticalLines[i]) {
                     drawVerticalLine(verticalLines[i]);
                 }
             }
-            for (let j = horizontalLines.length; j--; ) {
+            for (let j = horizontalLines.length; j--;) {
                 if (horizontalLines[j]) {
                     drawHorizontalLine(horizontalLines[j]);
                 }
@@ -1131,6 +1138,10 @@ class AlignGuidLinePlugin implements IPluginTempl {
             horizontalLines.length = 0;
             canvas.renderAll();
         });
+    }
+
+    changeSwitch(switchStatus: boolean) {
+        this.switch = switchStatus ?? !this.switch;
     }
 
     destroy() {

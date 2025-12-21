@@ -39,10 +39,13 @@ class Editor extends EventEmitter {
         [propName: string]: AsyncSeriesHook<any, any>;
     } = {};
 
-    init(canvas: fabric.Canvas) {
+    init(canvas: fabric.Canvas, options?: { contextMenu?: boolean }) {
         this.canvas = canvas;
-        this._initContextMenu();
-        this._bindContextMenu();
+        // 初始化上下文菜单
+        if (options?.contextMenu !== false) {
+            this._initContextMenu();
+            this._bindContextMenu();
+        }
         this._initActionHooks();
         this._initServersPlugin();
 

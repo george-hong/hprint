@@ -48,8 +48,8 @@ class BarCodePlugin implements IPluginTempl {
     }
 
     async hookTransformObjectEnd({ originObject, fabricObject }: { originObject: any, fabricObject: any }) {
-        if (originObject.extensionType === 'qrcode') {
-            this._bindQrCodeEvents(fabricObject);
+        if (originObject.extensionType === 'barcode') {
+            this._bindBarcodeEvents(fabricObject);
         }
     }
 
