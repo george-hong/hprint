@@ -199,9 +199,19 @@ class ServersPlugin implements IPluginTempl {
         });
     }
 
-    getJson() {
+    getJson(options?: {
+        clearSrc?: boolean
+    }) {
         const keys = this.getExtensionKey();
-        return this.canvas.toJSON(keys);
+        const jsonObject = this.canvas.toJSON(keys);
+        if (options?.clearSrc) {
+            jsonObject.objects.forEach((item: any) => {
+                if (['qrcode', 'barcode'].includes(item.extensionType)) {
+                    item.src = '';
+                }
+            });
+        }
+        return jsonObject;
     }
 
     getExtensionKey() {
