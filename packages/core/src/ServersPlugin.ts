@@ -227,6 +227,8 @@ class ServersPlugin implements IPluginTempl {
             'verticalAlign',
             'roundValue',
             'getBase64',
+            'lockScalingX',
+            'lockScalingY',
             '_originSize',
         ];
     }
