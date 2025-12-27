@@ -152,6 +152,7 @@ class CanvasRuler {
     private tempGuidelLine: fabric.GuideLine | undefined;
     private needsRectUpdate: boolean = true;
     private currentMovingTarget: fabric.Object | undefined;
+    private lastViewportTransform: number[] | undefined;
 
     constructor(_options: RulerOptions) {
         // 合并默认配置
@@ -261,7 +262,8 @@ class CanvasRuler {
             'selection:cleared',
             this.eventHandler.clearStatus
         );
-        this.options.canvas.on('object:added', this.eventHandler.markRectDirtyImmediate);
+        // 标尺组件在初始化后似乎高亮了最后一个元素的尺寸，目前不需要这个行为
+        // this.options.canvas.on('object:added', this.eventHandler.markRectDirtyImmediate);
         this.options.canvas.on('selection:created', this.eventHandler.markRectDirtyImmediate);
         this.options.canvas.on('selection:updated', this.eventHandler.markRectDirtyImmediate);
         this.options.canvas.on('object:moving', this.eventHandler.markRectDirtyThrottled);
@@ -320,6 +322,16 @@ class CanvasRuler {
         // if (!this.options.enabled) return;
         const vpt = this.options.canvas.viewportTransform;
         if (!vpt) return;
+
+        // 检查视口是否变化（缩放/平移）
+        if (
+            !this.lastViewportTransform ||
+            this.lastViewportTransform.some((val, index) => val !== vpt[index])
+        ) {
+            this.needsRectUpdate = true;
+            this.lastViewportTransform = [...vpt];
+        }
+
         if (this.needsRectUpdate) {
             if (this.currentMovingTarget) {
                 this.calcObjectRectFromTarget(this.currentMovingTarget);
