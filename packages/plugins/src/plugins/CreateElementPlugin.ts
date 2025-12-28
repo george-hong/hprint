@@ -101,6 +101,12 @@ class CreateElementPlugin implements IPluginTempl {
                     if (value !== undefined) {
                         const processedVal = convertSingle(value, unit, dpi);
                         mergeOrigin(this, unit, { [field]: value });
+                        if (this.type === 'image' && (field === 'width' || field === 'height')) {
+                            if (field === 'width') {
+                                return originalSet('scaleX', processedVal / (this.width || 1));
+                            }
+                            return originalSet('scaleY', processedVal / (this.height || 1));
+                        }
                         return originalSet(field, processedVal);
                     }
                 }
@@ -136,7 +142,18 @@ class CreateElementPlugin implements IPluginTempl {
                 const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
                 const originUnit = originByUnit[unit] || {};
                 if (Object.keys(originUnit).length) mergeOrigin(this, unit, originUnit);
-                return originalSet({ ...opts, ...processed });
+                const finalProps = { ...opts, ...processed };
+                if (this.type === 'image') {
+                    if (finalProps.width !== undefined) {
+                        finalProps.scaleX = finalProps.width / (this.width || 1);
+                        delete finalProps.width;
+                    }
+                    if (finalProps.height !== undefined) {
+                        finalProps.scaleY = finalProps.height / (this.height || 1);
+                        delete finalProps.height;
+                    }
+                }
+                return originalSet(finalProps);
             }
             return originalSet(key, value);
         };
