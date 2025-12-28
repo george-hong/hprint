@@ -54,7 +54,11 @@ class CreateElementPlugin implements IPluginTempl {
         public editor: IEditor
     ) { }
 
-
+    async hookTransformObjectEnd({ originObject, fabricObject }: { originObject: any, fabricObject: any }) {
+        if (fabricObject) {
+            this.addSetAndSyncByUnit(fabricObject);
+        }
+    }
 
     private _processPoints(points: Array<{ x: number; y: number }>, dpi?: number): { processed: Array<{ x: number; y: number }>; originByUnit: Record<string, Record<string, any>> } {
         const hasCfg = CreateElementPlugin.lengthFieldConfigs.some(
