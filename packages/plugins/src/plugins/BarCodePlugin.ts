@@ -256,6 +256,7 @@ class BarCodePlugin implements IPluginTempl {
             fontStyle,
             underline,
             linethrough,
+            isShowText,
             ...barcodeOptions
         } = option;
 
@@ -276,7 +277,9 @@ class BarCodePlugin implements IPluginTempl {
         const svgUrl = `data:image/svg+xml;base64,` + btoa(svgStr);
 
         // 如果不需要显示文本，直接返回 SVG URL
-        if (!displayValue) {
+        // 优先使用 isShowText，如果没有定义则使用 displayValue
+        const shouldShowText = isShowText !== undefined ? isShowText : displayValue;
+        if (!shouldShowText) {
             return svgUrl;
         }
 
@@ -699,6 +702,7 @@ class BarCodePlugin implements IPluginTempl {
             fontStyle: 'normal',
             underline: false,
             linethrough: false,
+            isShowText: true,
         };
     }
 
@@ -822,6 +826,7 @@ class BarCodePlugin implements IPluginTempl {
             fontStyle?: string;
             underline?: boolean;
             linethrough?: boolean;
+            isShowText?: boolean;
         },
         dpi?: number
     ): Promise<fabric.Image> {
