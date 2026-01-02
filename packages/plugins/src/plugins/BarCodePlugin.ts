@@ -252,6 +252,10 @@ class BarCodePlugin implements IPluginTempl {
             charSpacing,
             lineHeight,
             fontFamily,
+            fontWeight,
+            fontStyle,
+            underline,
+            linethrough,
             ...barcodeOptions
         } = option;
 
@@ -299,6 +303,10 @@ class BarCodePlugin implements IPluginTempl {
                     : (option as any).textSpacing ?? 0,
             lineHeight: lineHeight || 1, // 传递行高
             fontFamily: fontFamily || 'Arial', // 传递字体
+            fontWeight: fontWeight || 'normal', // 传递字体粗细
+            fontStyle: fontStyle || 'normal', // 传递字体样式
+            underline: underline || false, // 传递下划线参数
+            linethrough: linethrough || false, // 传递删除线参数
         });
 
         // 合并条形码和文本，使用高分辨率
@@ -381,6 +389,10 @@ class BarCodePlugin implements IPluginTempl {
             fontFamily?: string;
             charSpacing?: number; // 字符间距
             lineHeight?: number; // 行高
+            fontWeight?: string;
+            fontStyle?: string;
+            underline?: boolean;
+            linethrough?: boolean;
         }
     ): HTMLCanvasElement {
         const canvas = document.createElement('canvas');
@@ -396,7 +408,19 @@ class BarCodePlugin implements IPluginTempl {
         const lines = String(text).split('\n');
         const scaledLineHeight = scaledFontSize * lineHeight;
         const totalTextHeight = scaledLineHeight * lines.length;
-        const canvasHeight = totalTextHeight;
+
+        const hasUnderline = options.underline;
+        const hasLineThrough = options.linethrough;
+
+        // 计算需要的额外高度（如下划线）
+        let extraHeight = 0;
+        if (hasUnderline) {
+            const lineWidth = Math.max(1, options.fontSize / 15);
+            // 确保有足够的空间绘制下划线
+            extraHeight = lineWidth * options.scale * 1.5;
+        }
+
+        const canvasHeight = totalTextHeight + extraHeight;
 
         // 设置 canvas 的实际尺寸（高分辨率）
         canvas.width = scaledWidth;
@@ -410,7 +434,9 @@ class BarCodePlugin implements IPluginTempl {
         ctx.scale(options.scale, options.scale);
 
         // 设置字体（使用原始尺寸，因为已经通过 scale 缩放）
-        ctx.font = `${options.fontSize}px ${options.fontFamily || 'Arial'}`;
+        const fontWeight = options.fontWeight || 'normal';
+        const fontStyle = options.fontStyle || 'normal';
+        ctx.font = `${fontStyle} ${fontWeight} ${options.fontSize}px ${options.fontFamily || 'Arial'}`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#000';
@@ -452,6 +478,33 @@ class BarCodePlugin implements IPluginTempl {
                     const w = ctx.measureText(ch).width;
                     cursorX += w + charSpacing / options.scale;
                 }
+            }
+
+            // 绘制装饰线
+            if (hasUnderline || hasLineThrough) {
+                ctx.beginPath();
+                // 线的宽度
+                const lineWidth = Math.max(1, options.fontSize / 15);
+                ctx.lineWidth = lineWidth;
+                ctx.strokeStyle = '#000';
+
+                // 绘制下划线
+                if (hasUnderline) {
+                    // 通常下划线在 baseline 之下，但这里是 top baseline
+                    // 简单估算：lineY + fontSize + offset
+                    const underlineY = lineY + options.fontSize + lineWidth;
+                    ctx.moveTo(lineX, underlineY);
+                    ctx.lineTo(lineX + rawLineWidth, underlineY);
+                }
+
+                // 绘制删除线
+                if (hasLineThrough) {
+                    // 删除线在中间
+                    const lineThroughY = lineY + options.fontSize / 2;
+                    ctx.moveTo(lineX, lineThroughY);
+                    ctx.lineTo(lineX + rawLineWidth, lineThroughY);
+                }
+                ctx.stroke();
             }
         });
 
@@ -642,6 +695,10 @@ class BarCodePlugin implements IPluginTempl {
             width: 1,
             height: 30,
             boxWidth: 60,
+            fontWeight: 'normal',
+            fontStyle: 'normal',
+            underline: false,
+            linethrough: false,
         };
     }
 
@@ -761,6 +818,10 @@ class BarCodePlugin implements IPluginTempl {
             displayValue?: boolean;
             margin?: number;
             width?: number;
+            fontWeight?: string;
+            fontStyle?: string;
+            underline?: boolean;
+            linethrough?: boolean;
         },
         dpi?: number
     ): Promise<fabric.Image> {
