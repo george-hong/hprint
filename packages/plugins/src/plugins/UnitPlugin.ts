@@ -103,12 +103,26 @@ class UnitPlugin implements IPluginTempl {
         return Math.round(value * factor) / factor;
     }
 
-    _formatOriginUnitValues<T extends { [k: string]: number | undefined }>(vals: T): T {
+    _formatOriginUnitValues<T extends { [k: string]: number | undefined }>(
+        vals: T,
+        obj?: fabric.Object,
+        unit?: 'mm' | 'inch'
+    ): T {
         const result: Record<string, number | undefined> = {};
         for (const key in vals) {
             const v = vals[key];
             result[key] = v === undefined ? undefined : this._toPrecisionValue(v);
         }
+        
+        // Preserve the existing extension property if obj and unit are provided
+        if (obj && unit) {
+            const existingUnit = (obj as any)._originSize?.[unit] || {};
+            const extension = existingUnit.extension;
+            if (extension !== undefined) {
+                (result as any).extension = extension;
+            }
+        }
+        
         return result as T;
     }
 
@@ -155,8 +169,11 @@ class UnitPlugin implements IPluginTempl {
             strokeWidth: toPx(mm.strokeWidth),
             fontSize: toPx(mm.fontSize),
         });
-        const formatted = this._formatOriginUnitValues(mm);
-        (obj as any)._originSize = { ...(obj as any)._originSize, mm: { ...formatted } };
+        const formatted = this._formatOriginUnitValues(mm, obj, 'mm');
+        (obj as any)._originSize = {
+            ...(obj as any)._originSize,
+            mm: formatted
+        };
     }
 
     applyObjectInch(
@@ -185,8 +202,11 @@ class UnitPlugin implements IPluginTempl {
             },
             dpi
         );
-        const formatted = this._formatOriginUnitValues(inch);
-        (obj as any)._originSize = { ...(obj as any)._originSize, inch: { ...formatted } };
+        const formatted = this._formatOriginUnitValues(inch, obj, 'inch');
+        (obj as any)._originSize = {
+            ...(obj as any)._originSize,
+            inch: formatted
+        };
     }
 
     applyObjectByUnit(

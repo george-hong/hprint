@@ -31,6 +31,10 @@ export function applyMmToObject(
   if (strokeWidthPx !== undefined) obj.set('strokeWidth', strokeWidthPx);
   if (fontSizePx !== undefined) (obj as any).fontSize = fontSizePx;
 
+  // Preserve the existing extension property from _originSize.mm
+  const existingMm = (obj as any)._originSize?.mm || {};
+  const extension = existingMm.extension;
+
   (obj as any)._originSize = {
     ...(obj as any)._originSize,
     mm: {
@@ -40,6 +44,8 @@ export function applyMmToObject(
       height: mm.height,
       strokeWidth: mm.strokeWidth,
       fontSize: mm.fontSize,
+      // Preserve extension if it exists
+      ...(extension !== undefined ? { extension } : {}),
     },
   };
 }
@@ -56,6 +62,10 @@ export function syncMmFromObject(obj: fabric.Object, dpi?: number, precision?: n
   const strokeWidth = obj.strokeWidth as number | undefined;
   const fontSize = (obj as any).fontSize as number | undefined;
 
+  // Preserve the existing extension property from _originSize.mm
+  const existingMm = (obj as any)._originSize?.mm || {};
+  const extension = existingMm.extension;
+
   (obj as any)._originSize = {
     ...(obj as any)._originSize,
     mm: {
@@ -65,6 +75,8 @@ export function syncMmFromObject(obj: fabric.Object, dpi?: number, precision?: n
       height: toMm(height),
       strokeWidth: toMm(strokeWidth),
       fontSize: toMm(fontSize),
+      // Preserve extension if it exists
+      ...(extension !== undefined ? { extension } : {}),
     },
   };
 }
