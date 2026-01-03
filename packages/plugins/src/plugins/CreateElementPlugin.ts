@@ -106,6 +106,8 @@ class CreateElementPlugin implements IPluginTempl {
             const unit = getUnit(editorRef);
             const dpi = 96;
             const isTransforming = !!(this.canvas && (this.canvas as any)._currentTransform);
+            const isLineObject = this.type === 'line' || this.type === 'arrow' || this.type === 'thinTailArrow';
+            
             if (typeof key === 'string') {
                 const field = key as keyof fabric.Object;
                 if (singleFields.includes(field)) {
@@ -115,6 +117,65 @@ class CreateElementPlugin implements IPluginTempl {
                     if (value !== undefined) {
                         const processedVal = convertSingle(value, unit, dpi);
                         mergeOrigin(this, unit, { [field]: value });
+                        
+                        // Special handling for Line objects - width/height changes should update coordinates
+                        if (isLineObject && (field === 'width' || field === 'height')) {
+                            const currentWidth = Math.abs((this as any).x2 - (this as any).x1);
+                            const currentHeight = Math.abs((this as any).y2 - (this as any).y1);
+                            
+                            if (field === 'width' && currentWidth > 0) {
+                                // Keep first point (x1) fixed, only update x2
+                                const x1 = (this as any).x1;
+                                const x2 = (this as any).x2;
+                                const left = (this as any).left;
+                                const top = (this as any).top;
+                                const direction = Math.sign(x2 - x1);
+                                const newX2 = x1 + processedVal * direction;
+                                
+                                // Calculate new bounding box to maintain position
+                                const oldMinX = Math.min(x1, x2);
+                                const newMinX = Math.min(x1, newX2);
+                                const offsetX = oldMinX - newMinX;
+                                
+                                (originalSet as any)('x2', newX2);
+                                // Adjust left to compensate for coordinate change
+                                if (offsetX !== 0) {
+                                    const newLeft = left + offsetX;
+                                    (originalSet as any)('left', newLeft);
+                                    // Update _originSize with new left position
+                                    const originLeft = editorRef.getSizeByUnit(newLeft);
+                                    mergeOrigin(this, unit, { left: originLeft });
+                                }
+                                return this;
+                            }
+                            
+                            if (field === 'height' && currentHeight > 0) {
+                                // Keep first point (y1) fixed, only update y2
+                                const y1 = (this as any).y1;
+                                const y2 = (this as any).y2;
+                                const left = (this as any).left;
+                                const top = (this as any).top;
+                                const direction = Math.sign(y2 - y1);
+                                const newY2 = y1 + processedVal * direction;
+                                
+                                // Calculate new bounding box to maintain position
+                                const oldMinY = Math.min(y1, y2);
+                                const newMinY = Math.min(y1, newY2);
+                                const offsetY = oldMinY - newMinY;
+                                
+                                (originalSet as any)('y2', newY2);
+                                // Adjust top to compensate for coordinate change
+                                if (offsetY !== 0) {
+                                    const newTop = top + offsetY;
+                                    (originalSet as any)('top', newTop);
+                                    // Update _originSize with new top position
+                                    const originTop = editorRef.getSizeByUnit(newTop);
+                                    mergeOrigin(this, unit, { top: originTop });
+                                }
+                                return this;
+                            }
+                        }
+                        
                         if (this.type === 'image' && (field === 'width' || field === 'height')) {
                             if (field === 'width') {
                                 return originalSet('scaleX', processedVal / (this.width || 1));
@@ -173,6 +234,62 @@ class CreateElementPlugin implements IPluginTempl {
                 }
                 if (Object.keys(originUnit).length) mergeOrigin(this, unit, originUnit);
                 const finalProps = { ...opts, ...processed };
+                
+                // Special handling for Line objects - width/height changes should update coordinates
+                if (isLineObject) {
+                    const left = (this as any).left;
+                    const top = (this as any).top;
+                    let offsetX = 0;
+                    let offsetY = 0;
+                    
+                    if (finalProps.width !== undefined) {
+                        const currentWidth = Math.abs((this as any).x2 - (this as any).x1);
+                        if (currentWidth > 0) {
+                            // Keep first point (x1) fixed, only update x2
+                            const x1 = (this as any).x1;
+                            const x2 = (this as any).x2;
+                            const direction = Math.sign(x2 - x1);
+                            const newX2 = x1 + finalProps.width * direction;
+                            
+                            // Calculate offset to maintain position
+                            const oldMinX = Math.min(x1, x2);
+                            const newMinX = Math.min(x1, newX2);
+                            offsetX = oldMinX - newMinX;
+                            
+                            finalProps.x2 = newX2;
+                            delete finalProps.width;
+                        }
+                    }
+                    if (finalProps.height !== undefined) {
+                        const currentHeight = Math.abs((this as any).y2 - (this as any).y1);
+                        if (currentHeight > 0) {
+                            // Keep first point (y1) fixed, only update y2
+                            const y1 = (this as any).y1;
+                            const y2 = (this as any).y2;
+                            const direction = Math.sign(y2 - y1);
+                            const newY2 = y1 + finalProps.height * direction;
+                            
+                            // Calculate offset to maintain position
+                            const oldMinY = Math.min(y1, y2);
+                            const newMinY = Math.min(y1, newY2);
+                            offsetY = oldMinY - newMinY;
+                            
+                            finalProps.y2 = newY2;
+                            delete finalProps.height;
+                        }
+                    }
+                    
+                    // Adjust left/top to compensate for coordinate changes
+                    if (offsetX !== 0) {
+                        finalProps.left = left + offsetX;
+                        originUnit.left = editorRef.getSizeByUnit(finalProps.left);
+                    }
+                    if (offsetY !== 0) {
+                        finalProps.top = top + offsetY;
+                        originUnit.top = editorRef.getSizeByUnit(finalProps.top);
+                    }
+                }
+                
                 if (this.type === 'image') {
                     if (finalProps.width !== undefined) {
                         finalProps.scaleX = finalProps.width / (this.width || 1);
@@ -203,6 +320,7 @@ class CreateElementPlugin implements IPluginTempl {
             const ratio = convertSingle(1, unit, dpiVal) || 1;
             const origin: Record<string, any> = {};
             const isImageObject = (this as any).type === 'image';
+            const isLineObject = (this as any).type === 'line' || (this as any).type === 'arrow' || (this as any).type === 'thinTailArrow';
             const targetFields: string[] =
                 hasFieldsArray && (fieldsOrDpi as string[])?.length ? (fieldsOrDpi as string[]) : singleFields;
             targetFields.forEach((field) => {
@@ -213,6 +331,13 @@ class CreateElementPlugin implements IPluginTempl {
                         currentVal = (this as any).getScaledWidth?.();
                     } else {
                         currentVal = (this as any).getScaledHeight?.();
+                    }
+                } else if (isLineObject && (field === 'width' || field === 'height')) {
+                    // For line objects, calculate width/height from coordinates
+                    if (field === 'width') {
+                        currentVal = Math.abs((this as any).x2 - (this as any).x1);
+                    } else {
+                        currentVal = Math.abs((this as any).y2 - (this as any).y1);
                     }
                 } else {
                     currentVal = (this as any).get ? (this as any).get(field) : (this as any)[field];
