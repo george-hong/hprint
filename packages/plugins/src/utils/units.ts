@@ -31,21 +31,20 @@ export function applyMmToObject(
   if (strokeWidthPx !== undefined) obj.set('strokeWidth', strokeWidthPx);
   if (fontSizePx !== undefined) (obj as any).fontSize = fontSizePx;
 
-  // Preserve the existing extension property from _originSize.mm
+  // Preserve ALL existing fields from _originSize.mm to prevent data loss
   const existingMm = (obj as any)._originSize?.mm || {};
-  const extension = existingMm.extension;
 
   (obj as any)._originSize = {
     ...(obj as any)._originSize,
     mm: {
+      ...existingMm,  // Preserve all existing fields first
+      // Then update only the provided fields
       left: mm.left,
       top: mm.top,
       width: mm.width,
       height: mm.height,
       strokeWidth: mm.strokeWidth,
       fontSize: mm.fontSize,
-      // Preserve extension if it exists
-      ...(extension !== undefined ? { extension } : {}),
     },
   };
 }
@@ -62,21 +61,20 @@ export function syncMmFromObject(obj: fabric.Object, dpi?: number, precision?: n
   const strokeWidth = obj.strokeWidth as number | undefined;
   const fontSize = (obj as any).fontSize as number | undefined;
 
-  // Preserve the existing extension property from _originSize.mm
+  // Preserve ALL existing fields from _originSize.mm to prevent data loss
   const existingMm = (obj as any)._originSize?.mm || {};
-  const extension = existingMm.extension;
 
   (obj as any)._originSize = {
     ...(obj as any)._originSize,
     mm: {
+      ...existingMm,  // Preserve all existing fields first
+      // Then update only the synced fields
       left: toMm(left),
       top: toMm(top),
       width: toMm(width),
       height: toMm(height),
       strokeWidth: toMm(strokeWidth),
       fontSize: toMm(fontSize),
-      // Preserve extension if it exists
-      ...(extension !== undefined ? { extension } : {}),
     },
   };
 }

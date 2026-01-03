@@ -92,6 +92,16 @@ class CreateElementPlugin implements IPluginTempl {
             const mergedUnit = { ...(prev[unit] || {}), ...formatted };
             target._originSize = { ...prev, [unit]: mergedUnit };
         };
+        const applyStrokeDashArrayFromOrigin = (target: any) => {
+            const unit = getUnit(editorRef);
+            const originUnit = (target._originSize?.[unit] || {}) as Record<string, any>;
+            const strokeDashArray = originUnit.strokeDashArray;
+            if (Array.isArray(strokeDashArray) && strokeDashArray.length > 0) {
+                const strokeWidth = target.get('strokeWidth') || 1;
+                const actualDashArray = strokeDashArray.map((v: number) => v * strokeWidth);
+                (originalSet as any)('strokeDashArray', actualDashArray);
+            }
+        };
         (obj as any).setByUnit = function (key: any, value?: any) {
             const unit = getUnit(editorRef);
             const dpi = 96;
@@ -111,21 +121,34 @@ class CreateElementPlugin implements IPluginTempl {
                             }
                             return originalSet('scaleY', processedVal / (this.height || 1));
                         }
-                        return originalSet(field, processedVal);
+                        const result = originalSet(field, processedVal);
+                        if (field === 'strokeWidth') {
+                            applyStrokeDashArrayFromOrigin(this);
+                        }
+                        return result;
                     }
+                }
+                if (field === 'strokeDashArray' && Array.isArray(value)) {
+                    if (isTransforming) {
+                        return (originalSet as any)(field, value);
+                    }
+                    mergeOrigin(this, unit, { strokeDashArray: value });
+                    const strokeWidth = this.get('strokeWidth') || 1;
+                    const actualDashArray = value.map((v: number) => v * strokeWidth);
+                    return (originalSet as any)(field, actualDashArray);
                 }
                 if (field === 'points' && hasPointsField && Array.isArray(value)) {
                     if (isTransforming) {
-                        return originalSet(field, value);
+                        return (originalSet as any)(field, value);
                     }
                     const pts = (value as Array<{ x: number; y: number }>).map((p) => ({
                         x: convertSingle(p.x, unit, dpi),
                         y: convertSingle(p.y, unit, dpi),
                     }));
                     mergeOrigin(this, unit, { points: value });
-                    return originalSet(field, pts);
+                    return (originalSet as any)(field, pts);
                 }
-                return originalSet(key, value);
+                return (originalSet as any)(key, value);
             }
             if (key && typeof key === 'object') {
                 const opts = { ...key } as Record<string, any>;
@@ -145,6 +168,9 @@ class CreateElementPlugin implements IPluginTempl {
                 }
                 const { processed, originByUnit } = processOptions(opts, unit, dpi, singleFields);
                 const originUnit = originByUnit[unit] || {};
+                if (Array.isArray(opts.strokeDashArray)) {
+                    originUnit.strokeDashArray = opts.strokeDashArray;
+                }
                 if (Object.keys(originUnit).length) mergeOrigin(this, unit, originUnit);
                 const finalProps = { ...opts, ...processed };
                 if (this.type === 'image') {
@@ -157,7 +183,15 @@ class CreateElementPlugin implements IPluginTempl {
                         delete finalProps.height;
                     }
                 }
-                return originalSet(finalProps);
+                if (Array.isArray(finalProps.strokeDashArray)) {
+                    const strokeWidth = finalProps.strokeWidth ?? this.get('strokeWidth') ?? 1;
+                    finalProps.strokeDashArray = finalProps.strokeDashArray.map((v: number) => v * strokeWidth);
+                }
+                const result = originalSet(finalProps);
+                if (finalProps.strokeWidth !== undefined) {
+                    applyStrokeDashArrayFromOrigin(this);
+                }
+                return result;
             }
             return originalSet(key, value);
         };
@@ -279,7 +313,7 @@ class CreateElementPlugin implements IPluginTempl {
 
     createLine(
         points: Array<{ x: number; y: number }>,
-        opts?: { strokeWidth?: number; stroke?: string },
+        opts?: { strokeWidth?: number; stroke?: string; strokeDashArray?: number[] },
         dpi?: number
     ): fabric.Line {
         const unit = getUnit(this.editor);
@@ -291,16 +325,18 @@ class CreateElementPlugin implements IPluginTempl {
         const { processed: optProcessed, originByUnit: originOpts } =
             processOptions(opts || {}, unit, dpi, singleFields);
 
-        const line = new fabric.Line(
-            [pts[0].x, pts[0].y, pts[1].x, pts[1].y],
-            {
-                ...opts,
-                strokeWidth:
-                    optProcessed.strokeWidth !== undefined
-                        ? optProcessed.strokeWidth
-                        : undefined,
-            }
-        );
+        const strokeWidth = optProcessed.strokeWidth ?? (opts?.strokeWidth !== undefined ? convertSingle(opts.strokeWidth, unit, dpi) : 1);
+        const lineOpts: any = {
+            ...opts,
+            strokeWidth: optProcessed.strokeWidth !== undefined ? optProcessed.strokeWidth : undefined,
+        };
+        
+        if (Array.isArray(opts?.strokeDashArray)) {
+            const actualDashArray = opts.strokeDashArray.map((v) => v * strokeWidth);
+            lineOpts.strokeDashArray = actualDashArray;
+        }
+        
+        const line = new fabric.Line([pts[0].x, pts[0].y, pts[1].x, pts[1].y], lineOpts);
 
         const precision = (this.editor as any).getPrecision?.();
         const mergedOrigin = {
@@ -309,6 +345,11 @@ class CreateElementPlugin implements IPluginTempl {
                 ...formatOriginValues(originPoints[unit] || {}, precision),
             },
         } as Record<string, any>;
+        
+        if (Array.isArray(opts?.strokeDashArray)) {
+            mergedOrigin[unit].strokeDashArray = formatOriginValues({ arr: opts.strokeDashArray }, precision).arr;
+        }
+        
         (line as any)._originSize = mergedOrigin;
         this.addSetAndSyncByUnit(line);
         return line;

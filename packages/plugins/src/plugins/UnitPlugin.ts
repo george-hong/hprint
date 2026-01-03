@@ -114,13 +114,15 @@ class UnitPlugin implements IPluginTempl {
             result[key] = v === undefined ? undefined : this._toPrecisionValue(v);
         }
         
-        // Preserve the existing extension property if obj and unit are provided
+        // Preserve ALL existing fields from _originSize[unit] to prevent data loss
         if (obj && unit) {
             const existingUnit = (obj as any)._originSize?.[unit] || {};
-            const extension = existingUnit.extension;
-            if (extension !== undefined) {
-                (result as any).extension = extension;
-            }
+            // Merge existing fields with new values, new values take precedence
+            Object.keys(existingUnit).forEach((key) => {
+                if (!(key in result)) {
+                    result[key] = existingUnit[key];
+                }
+            });
         }
         
         return result as T;
