@@ -16,7 +16,8 @@
         "test": "echo \"Error: no test specified\" && exit 1",
         "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
         "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
-        "publish:alpha": "pnpm build && pnpm -r --filter '@hprint/*' publish --access public --tag alpha"
+        "publish:alpha": "pnpm build && pnpm -r --filter '@hprint/*' publish --access public --tag alpha",
+        "publish": "pnpm build && pnpm -r --filter '@hprint/*' publish --access public"
     },
     "keywords": [],
     "author": "",
