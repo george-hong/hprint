@@ -881,6 +881,24 @@ class BarCodePlugin implements IPluginTempl {
                         originMapped.width = originMapped.boxWidth;
                         delete originMapped.boxWidth;
                     }
+
+                    // Format extension values with precision
+                    const precision = (this.editor as any).getPrecision?.();
+                    const extensionFields: Record<string, any> = {};
+                    // Store fontSize and other extension fields from origin
+                    if (origin.fontSize !== undefined) {
+                        extensionFields.fontSize = origin.fontSize;
+                    }
+                    // Add other extension-related fields if they exist in origin
+                    const extensionKeys = ['fontFamily', 'fontWeight', 'fontStyle', 'underline', 'linethrough', 'textAlign', 'textPosition', 'charSpacing', 'lineHeight', 'isShowText'];
+                    extensionKeys.forEach(key => {
+                        if (origin[key] !== undefined) {
+                            extensionFields[key] = origin[key];
+                        }
+                    });
+                    const formattedExtension = formatOriginValues(extensionFields, precision);
+                    originMapped.extension = formattedExtension;
+
                     (imgEl as any)._originSize = { [unit]: originMapped };
 
                     this._bindBarcodeEvents(imgEl);
