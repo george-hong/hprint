@@ -12,6 +12,19 @@ import type { IEditor, IPluginTempl } from '@hprint/core';
  */
 fabric.Object.NUM_FRACTION_DIGITS = 4;
 
+/**
+ * 统一的控制点样式配置
+ */
+const CONTROL_STYLES = {
+    transparentCorners: false,
+    borderColor: '#51B9F9',
+    cornerColor: '#FFF',
+    borderScaleFactor: 2.5,
+    cornerStyle: 'circle' as const,
+    cornerStrokeColor: 'rgba(0,0,0,0.25)', // 更淡的灰色边框
+    borderOpacityWhenMoving: 1,
+};
+
 function drawImg(
     ctx: CanvasRenderingContext2D,
     left: number,
@@ -230,17 +243,166 @@ class ControlsPlugin implements IPluginTempl {
         rotationControl();
 
         // 选中样式
-        fabric.Object.prototype.set({
-            transparentCorners: false,
-            borderColor: '#51B9F9',
-            cornerColor: '#FFF',
-            borderScaleFactor: 2.5,
-            cornerStyle: 'circle',
-            cornerStrokeColor: '#0E98FC',
-            borderOpacityWhenMoving: 1,
-        });
+        fabric.Object.prototype.set(CONTROL_STYLES);
         // textbox保持一致
         // fabric.Textbox.prototype.controls = fabric.Object.prototype.controls;
+
+        // 自定义多选控制点渲染
+        this.customizeActiveSelection();
+
+        // 监听 loadJson 事件，重新应用控制点样式
+        this.editor.on('loadJson', () => {
+            this.applyControlStyles();
+        });
+    }
+
+    /**
+     * 为画布上所有对象应用统一的控制点样式
+     */
+    applyControlStyles() {
+        const objects = this.canvas.getObjects();
+        objects.forEach((obj) => {
+            // 跳过 workspace 等特殊对象
+            if (obj.id === 'workspace' || obj.id === 'coverMask') {
+                return;
+            }
+            obj.set(CONTROL_STYLES);
+        });
+        this.canvas.renderAll();
+    }
+
+    /**
+     * 自定义多选控制点，添加白色填充并确保在边框上方
+     */
+    customizeActiveSelection() {
+        // 自定义控制点渲染函数
+        const renderCircleControl = (
+            ctx: CanvasRenderingContext2D,
+            left: number,
+            top: number,
+            styleOverride: any,
+            fabricObject: fabric.Object
+        ) => {
+            const size = fabricObject.cornerSize || 10;
+            ctx.save();
+            ctx.translate(left, top);
+            ctx.rotate(fabric.util.degreesToRadians(fabricObject.angle || 0));
+            
+            // 绘制阴影
+            ctx.shadowColor = 'rgba(0,0,0,0.15)';
+            ctx.shadowBlur = 3;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 1;
+            
+            // 绘制白色填充的圆形
+            ctx.beginPath();
+            ctx.arc(0, 0, size / 2, 0, 2 * Math.PI, false);
+            ctx.fillStyle = '#FFF';
+            ctx.fill();
+            
+            // 清除阴影，避免边框也有阴影
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            
+            // 绘制更淡的灰色边框
+            ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            ctx.restore();
+        };
+
+        // 为 ActiveSelection 设置自定义控制点
+        const controlKeys = ['tl', 'tr', 'bl', 'br', 'ml', 'mr', 'mt', 'mb', 'mtr'];
+        controlKeys.forEach((key) => {
+            if (fabric.ActiveSelection.prototype.controls[key]) {
+                const originalControl = fabric.ActiveSelection.prototype.controls[key];
+                fabric.ActiveSelection.prototype.controls[key] = new fabric.Control({
+                    ...originalControl,
+                    render: renderCircleControl,
+                });
+            }
+        });
+
+        // 应用样式配置
+        fabric.ActiveSelection.prototype.set(CONTROL_STYLES);
+        
+        // 跟踪是否正在移动或缩放对象
+        let isTransforming = false;
+        
+        // 监听对象移动开始
+        this.canvas.on('object:moving', (e: any) => {
+            if (e.target && e.target.type === 'activeSelection') {
+                isTransforming = true;
+            }
+        });
+        
+        // 监听对象缩放开始
+        this.canvas.on('object:scaling', (e: any) => {
+            if (e.target && e.target.type === 'activeSelection') {
+                isTransforming = true;
+            }
+        });
+        
+        // 监听对象旋转开始
+        this.canvas.on('object:rotating', (e: any) => {
+            if (e.target && e.target.type === 'activeSelection') {
+                isTransforming = true;
+            }
+        });
+        
+        // 监听对象变换结束
+        this.canvas.on('object:modified', (e: any) => {
+            if (e.target && e.target.type === 'activeSelection') {
+                isTransforming = false;
+                this.canvas.requestRenderAll();
+            }
+        });
+        
+        // 监听鼠标松开（防止某些情况下modified事件未触发）
+        this.canvas.on('mouse:up', () => {
+            if (isTransforming) {
+                isTransforming = false;
+                this.canvas.requestRenderAll();
+            }
+        });
+        
+        // 监听canvas的after:render事件，在所有内容渲染完成后额外绘制多选控制点
+        this.canvas.on('after:render', () => {
+            // 如果正在变换（移动、缩放、旋转），不绘制控制点
+            if (isTransforming) return;
+            
+            const activeObject = this.canvas.getActiveObject();
+            if (activeObject && activeObject.type === 'activeSelection') {
+                const ctx = this.canvas.getContext();
+                if (!ctx) return;
+                
+                ctx.save();
+                
+                // 确保控制点在最上层
+                ctx.globalCompositeOperation = 'source-over';
+                
+                // 额外绘制一次控制点，确保在所有边框之上
+                activeObject.forEachControl((control: any, key: string) => {
+                    if (control.getVisibility(activeObject, key)) {
+                        const p = activeObject.oCoords[key];
+                        if (p) {
+                            control.render(
+                                ctx,
+                                p.x,
+                                p.y,
+                                {},
+                                activeObject
+                            );
+                        }
+                    }
+                });
+                
+                ctx.restore();
+            }
+        });
     }
 
     destroy() {
