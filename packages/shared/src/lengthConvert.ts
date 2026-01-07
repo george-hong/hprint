@@ -15,30 +15,32 @@ export default class LengthConvert {
      * 获取设备DPI（缓存结果避免重复计算）
      */
     static getDeviceDPI(): number {
-        if (!this._deviceDPI) {
-            try {
-                const element = document.createElement('div');
-                element.style.width = '1in';
-                element.style.height = '0';
-                element.style.position = 'absolute';
-                element.style.visibility = 'hidden';
+        // 为避免缩放屏幕后导致元素生成的尺寸不一致，先固定dpi
+        return this.CONSTANTS.DEFAULT_DPI;
+        // if (!this._deviceDPI) {
+        //     try {
+        //         const element = document.createElement('div');
+        //         element.style.width = '1in';
+        //         element.style.height = '0';
+        //         element.style.position = 'absolute';
+        //         element.style.visibility = 'hidden';
 
-                document.body.appendChild(element);
-                const cssPixels = element.offsetWidth;
-                document.body.removeChild(element);
+        //         document.body.appendChild(element);
+        //         const cssPixels = element.offsetWidth;
+        //         document.body.removeChild(element);
 
-                this._deviceDPI =
-                    cssPixels * window.devicePixelRatio ||
-                    this.CONSTANTS.DEFAULT_DPI;
-            } catch (error) {
-                console.warn(
-                    '无法获取设备DPI，使用默认值:',
-                    this.CONSTANTS.DEFAULT_DPI
-                );
-                this._deviceDPI = this.CONSTANTS.DEFAULT_DPI;
-            }
-        }
-        return this._deviceDPI;
+        //         this._deviceDPI =
+        //             cssPixels * window.devicePixelRatio ||
+        //             this.CONSTANTS.DEFAULT_DPI;
+        //     } catch (error) {
+        //         console.warn(
+        //             '无法获取设备DPI，使用默认值:',
+        //             this.CONSTANTS.DEFAULT_DPI
+        //         );
+        //         this._deviceDPI = this.CONSTANTS.DEFAULT_DPI;
+        //     }
+        // }
+        // return this._deviceDPI;
     }
 
     /**
