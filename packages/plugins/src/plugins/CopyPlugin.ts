@@ -71,6 +71,12 @@ class CopyPlugin implements IPluginTempl {
                 evented: true,
                 id: uuid(),
             });
+            this.editor.addSetAndSyncByUnit(cloned);
+            if (cloned.extensionType === 'barcode') {
+                this.editor.initBarcodeEvents(cloned)
+            } else if (cloned.extensionType === 'qrcode') {
+                this.editor.initQrcodeEvents(cloned);
+            }
             canvas.add(cloned);
             canvas.setActiveObject(cloned);
             canvas.requestRenderAll();

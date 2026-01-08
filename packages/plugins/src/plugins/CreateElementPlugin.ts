@@ -15,6 +15,7 @@ type IPlugin = Pick<
     | 'createImage'
     | 'createBarcode'
     | 'createQrcode'
+    | 'addSetAndSyncByUnit'
 >;
 
 declare module '@hprint/core' {
@@ -34,6 +35,7 @@ class CreateElementPlugin implements IPluginTempl {
         'createImage',
         'createBarcode',
         'createQrcode',
+        'addSetAndSyncByUnit',
     ];
 
     static lengthFieldConfigs: Array<{ field: string; dealMethod: 'single' | 'points' }> = [
@@ -76,7 +78,7 @@ class CreateElementPlugin implements IPluginTempl {
     /**
      * 覆盖指定对象实例的 set 方法，仅在本插件创建的元素上生效
      */
-    private addSetAndSyncByUnit(obj: fabric.Object) {
+    addSetAndSyncByUnit(obj: fabric.Object) {
         const originalSet = obj.set.bind(obj);
         const editorRef = this.editor;
         const singleFields = CreateElementPlugin.lengthFieldConfigs

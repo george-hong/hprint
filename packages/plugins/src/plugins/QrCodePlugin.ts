@@ -4,7 +4,7 @@ import { utils } from '@hprint/shared';
 import { getUnit, processOptions, formatOriginValues } from '../utils/units';
 import type { IEditor, IPluginTempl } from '@hprint/core';
 
-type IPlugin = Pick<QrCodePlugin, 'addQrCode' | 'setQrCode'>;
+type IPlugin = Pick<QrCodePlugin, 'addQrCode' | 'setQrCode' | 'initQrcodeEvents'>;
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -13,7 +13,7 @@ declare module '@hprint/core' {
 
 class QrCodePlugin implements IPluginTempl {
     static pluginName = 'QrCodePlugin';
-    static apis = ['addQrCode', 'setQrCode'];
+    static apis = ['addQrCode', 'setQrCode', 'initQrcodeEvents'];
     constructor(
         public canvas: fabric.Canvas,
         public editor: IEditor
@@ -47,7 +47,7 @@ class QrCodePlugin implements IPluginTempl {
 
     async hookTransformObjectEnd({ originObject, fabricObject }: { originObject: any, fabricObject: any }) {
         if (originObject.extensionType === 'qrcode') {
-            this._bindQrCodeEvents(fabricObject);
+            this.initQrcodeEvents(fabricObject);
         }
     }
 
@@ -180,7 +180,7 @@ class QrCodePlugin implements IPluginTempl {
     /**
      * 绑定二维码相关事件与方法
      */
-    private _bindQrCodeEvents(imgEl: fabric.Image) {
+    initQrcodeEvents(imgEl: fabric.Image) {
         (imgEl as any).setExtension = async (fields: Record<string, any>) => {
             const currentExt = (imgEl.get('extension') as any) || {};
             const merged = { ...currentExt, ...(fields || {}) };
@@ -279,7 +279,7 @@ class QrCodePlugin implements IPluginTempl {
                         originMapped.height = originMapped.width;
                     }
                     (imgEl as any)._originSize = { [unit]: originMapped };
-                    this._bindQrCodeEvents(imgEl);
+                    this.initQrcodeEvents(imgEl);
                     resolve(imgEl);
                 },
                 { crossOrigin: 'anonymous' }
@@ -302,7 +302,7 @@ class QrCodePlugin implements IPluginTempl {
                         extension: { ...option },
                     });
                     imgEl.scaleToWidth(activeObject.getScaledWidth());
-                    this._bindQrCodeEvents(imgEl);
+                    this.initQrcodeEvents(imgEl);
                     this.editor.del();
                     this.canvas.add(imgEl);
                     this.canvas.setActiveObject(imgEl);

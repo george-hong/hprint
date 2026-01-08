@@ -4,7 +4,7 @@ import { getUnit, processOptions, formatOriginValues } from '../utils/units';
 
 type IPlugin = Pick<
     BarCodePlugin,
-    'addBarcode' | 'setBarcode' | 'getBarcodeTypes'
+    'addBarcode' | 'setBarcode' | 'getBarcodeTypes' | 'initBarcodeEvents'
 >;
 
 declare module '@hprint/core' {
@@ -26,7 +26,7 @@ enum CodeType {
 
 class BarCodePlugin implements IPluginTempl {
     static pluginName = 'BarCodePlugin';
-    static apis = ['addBarcode', 'setBarcode', 'getBarcodeTypes'];
+    static apis = ['addBarcode', 'setBarcode', 'getBarcodeTypes', 'initBarcodeEvents'];
     constructor(
         public canvas: fabric.Canvas,
         public editor: IEditor
@@ -49,12 +49,12 @@ class BarCodePlugin implements IPluginTempl {
 
     async hookTransformObjectEnd({ originObject, fabricObject }: { originObject: any, fabricObject: any }) {
         if (originObject.extensionType === 'barcode') {
-            this._bindBarcodeEvents(fabricObject);
+            this.initBarcodeEvents(fabricObject);
         }
     }
 
     // 绑定条形码对象的事件监听器
-    private _bindBarcodeEvents(imgEl: fabric.Image) {
+    initBarcodeEvents(imgEl: fabric.Image) {
         (imgEl as any).setExtension = async (fields: Record<string, any>) => {
             const currentExt = (imgEl.get('extension') as any) || {};
             const merged = { ...currentExt, ...(fields || {}) };
@@ -123,7 +123,7 @@ class BarCodePlugin implements IPluginTempl {
                     (obj as any).extensionType === 'barcode'
                 ) {
                     barcodeObjects.push(obj as fabric.Image);
-                    this._bindBarcodeEvents(obj as fabric.Image);
+                    this.initBarcodeEvents(obj as fabric.Image);
                 }
             });
 
@@ -901,7 +901,7 @@ class BarCodePlugin implements IPluginTempl {
 
                     (imgEl as any)._originSize = { [unit]: originMapped };
 
-                    this._bindBarcodeEvents(imgEl);
+                    this.initBarcodeEvents(imgEl);
                     resolve(imgEl);
                 },
                 { crossOrigin: 'anonymous' }
@@ -925,7 +925,7 @@ class BarCodePlugin implements IPluginTempl {
                     imgEl.scaleToWidth(activeObject.getScaledWidth());
 
                     // 绑定事件监听器
-                    this._bindBarcodeEvents(imgEl);
+                    this.initBarcodeEvents(imgEl);
 
                     this.editor.del();
                     this.canvas.add(imgEl);
