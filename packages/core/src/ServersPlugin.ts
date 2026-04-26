@@ -15,6 +15,7 @@ type IPlugin = Pick<
     | 'saveJson'
     | 'saveSvg'
     | 'getBase64'
+    | 'getSVG'
     | 'saveImg'
     | 'clear'
     | 'preview'
@@ -25,7 +26,7 @@ type IPlugin = Pick<
 
 declare module '@hprint/core' {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface IEditor extends IPlugin { }
+    interface IEditor extends IPlugin {}
 }
 
 function transformText(objects: any) {
@@ -53,6 +54,7 @@ class ServersPlugin implements IPluginTempl {
         'saveSvg',
         'saveImg',
         'getBase64',
+        'getSVG',
         'clear',
         'preview',
         'staticPreview',
@@ -158,7 +160,7 @@ class ServersPlugin implements IPluginTempl {
                             // 修复导入带水印的json无法清除问题 #359
                             this.editor?.updateDrawStatus &&
                                 typeof this.editor.updateDrawStatus ===
-                                'function' &&
+                                    'function' &&
                                 this.editor.updateDrawStatus(
                                     !!temp['overlayImage']
                                 );
@@ -199,9 +201,7 @@ class ServersPlugin implements IPluginTempl {
         });
     }
 
-    getJson(options?: {
-        clearSrc?: boolean
-    }) {
+    getJson(options?: { clearSrc?: boolean }) {
         const keys = this.getExtensionKey();
         const jsonObject = this.canvas.toJSON(keys);
         if (options?.clearSrc) {
@@ -321,6 +321,27 @@ class ServersPlugin implements IPluginTempl {
         });
     }
 
+    getSVG(options?: { width?: string; height?: string }) {
+        return new Promise<string>((resolve) => {
+            this.editor.hooksEntity.hookSaveBefore.callAsync('', () => {
+                this.canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+                const { fontOption, svgOption } = this._getSaveSvgOption({
+                    ignoreFont: true,
+                    width: options?.width,
+                    height: options?.height,
+                });
+                fabric.fontPaths = {
+                    ...fontOption,
+                };
+                const svg = this.canvas.toSVG(svgOption);
+                // this._printSvgString(svg);
+                this.editor.hooksEntity.hookSaveAfter.callAsync(svg, () =>
+                    resolve(svg)
+                );
+            });
+        });
+    }
+
     preview() {
         return new Promise<string>((resolve) => {
             this.editor.hooksEntity.hookSaveBefore.callAsync('', () => {
@@ -336,10 +357,14 @@ class ServersPlugin implements IPluginTempl {
     }
 
     staticPreview() {
-        return new Promise<string>((resolve) => { });
+        return new Promise<string>((resolve) => {});
     }
 
-    _getSaveSvgOption() {
+    _getSaveSvgOption(options?: {
+        ignoreFont?: boolean;
+        width?: string;
+        height?: string;
+    }) {
         const workspace = this.canvas
             .getObjects()
             .find((item) => item.id === 'workspace');
@@ -352,9 +377,11 @@ class ServersPlugin implements IPluginTempl {
         const fontList = this.editor.getPlugin('FontPlugin').cacheList;
 
         const fontEntry = {};
-        for (const font of fontFamilyArry) {
-            const item = fontList.find((item) => item.name === font);
-            fontEntry[font] = item.file;
+        if (!options?.ignoreFont) {
+            for (const font of fontFamilyArry) {
+                const item = fontList.find((item) => item.name === font);
+                fontEntry[font] = item.file;
+            }
         }
 
         console.log('_getSaveSvgOption', fontEntry);
@@ -362,8 +389,8 @@ class ServersPlugin implements IPluginTempl {
         return {
             fontOption: fontEntry,
             svgOption: {
-                width,
-                height,
+                width: options?.width ?? width,
+                height: options?.height ?? height,
                 viewBox: {
                     x: left,
                     y: top,
