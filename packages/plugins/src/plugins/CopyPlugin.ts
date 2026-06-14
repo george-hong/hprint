@@ -76,6 +76,8 @@ class CopyPlugin implements IPluginTempl {
                 this.editor.initBarcodeEvents(cloned)
             } else if (cloned.extensionType === 'qrcode') {
                 this.editor.initQrcodeEvents(cloned);
+            } else if (cloned.extensionType === 'imageTextList') {
+                this.editor.initImageTextListEvents(cloned);
             }
             canvas.add(cloned);
             canvas.setActiveObject(cloned);

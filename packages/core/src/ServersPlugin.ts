@@ -206,7 +206,11 @@ class ServersPlugin implements IPluginTempl {
         const jsonObject = this.canvas.toJSON(keys);
         if (options?.clearSrc) {
             jsonObject.objects.forEach((item: any) => {
-                if (['qrcode', 'barcode'].includes(item.extensionType)) {
+                if (
+                    ['qrcode', 'barcode', 'imageTextList'].includes(
+                        item.extensionType
+                    )
+                ) {
                     item.src = '';
                 }
             });
