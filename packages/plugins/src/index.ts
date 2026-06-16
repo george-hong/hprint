@@ -38,6 +38,7 @@ import AddBaseTypePlugin from './plugins/AddBaseTypePlugin';
 import PrintPlugin from './plugins/PrintPlugin';
 import CreateElementPlugin from './plugins/CreateElementPlugin';
 import ImageTextListPlugin from './plugins/ImageTextListPlugin';
+import ActualContentLayoutPlugin from './plugins/ActualContentLayoutPlugin';
 
 // 对象形式导出所有插件
 const pluginsObject: { [key: string]: IPluginTempl } = {
@@ -78,6 +79,7 @@ const pluginsObject: { [key: string]: IPluginTempl } = {
     PrintPlugin,
     CreateElementPlugin,
     ImageTextListPlugin,
+    ActualContentLayoutPlugin,
 };
 
 // 数组形式导出所有插件
@@ -119,6 +121,7 @@ const pluginsList: IPluginTempl[] = [
     PrintPlugin,
     CreateElementPlugin,
     ImageTextListPlugin,
+    ActualContentLayoutPlugin,
 ];
 
 export { pluginsObject, pluginsList, SelectEvent, SelectMode };

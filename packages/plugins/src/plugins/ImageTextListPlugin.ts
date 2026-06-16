@@ -206,7 +206,13 @@ class ImageTextListPlugin implements IPluginTempl {
     }
 
     async refreshImageTextList(group: ImageTextListGroup) {
-        const extension = this.normalizeOptions(group.get('extension') || {});
+        const currentExtension = this.normalizeOptions(group.get('extension') || {});
+        const extension = {
+            ...currentExtension,
+            _clipContent:
+                currentExtension._clipContent === true ||
+                Boolean(group.clipPath),
+        };
         const left = group.left;
         const top = group.top;
         const replacement = await this.buildGroup(extension);
@@ -230,6 +236,7 @@ class ImageTextListPlugin implements IPluginTempl {
             objectCaching: Boolean(replacement.clipPath),
             dirty: true,
         });
+        group.set('extension', extension);
         this.updateOriginSize(group, extension);
         group.setCoords();
         this.canvas.requestRenderAll();
