@@ -87,6 +87,10 @@ class HistoryPlugin implements IPluginTempl {
     private _loadState(state: string, eventName: string, callback?: callback) {
         this.isLoading = true;
         this.isProcessing = true;
+        const activeIds = this.canvas
+            .getActiveObjects()
+            .map((object: any) => object?.id)
+            .filter(Boolean);
 
         // 处理 workspace 的特殊情况
         const parsedState = JSON.parse(state);
@@ -97,13 +101,49 @@ class HistoryPlugin implements IPluginTempl {
             workspace.evented = false;
         }
 
-        this.canvas.loadFromJSON(state, () => {
-            this.canvas.renderAll();
-            this.canvas.fire(eventName);
-            this.isProcessing = false;
-            this.isLoading = false;
-            callback?.();
-        });
+        const hookPromises: Promise<void>[] = [];
+        this.canvas.loadFromJSON(
+            state,
+            () => {
+                Promise.all(hookPromises).then(() => {
+                    this.restoreActiveObjects(activeIds);
+                    this.canvas.renderAll();
+                    this.canvas.fire(eventName);
+                    this.isProcessing = false;
+                    this.isLoading = false;
+                    callback?.();
+                });
+            },
+            (originObject: any, fabricObject: fabric.Object) => {
+                hookPromises.push(
+                    new Promise((resolve) => {
+                        this.editor.hooksEntity.hookTransformObjectEnd.callAsync(
+                            { originObject, fabricObject },
+                            () => resolve()
+                        );
+                    })
+                );
+            }
+        );
+    }
+
+    private restoreActiveObjects(activeIds: string[]) {
+        this.canvas.discardActiveObject();
+        if (!activeIds.length) return;
+
+        const objects = this.canvas
+            .getObjects()
+            .filter((object: any) => activeIds.includes(object?.id));
+        if (objects.length === 1) {
+            this.canvas.setActiveObject(objects[0]);
+            return;
+        }
+        if (objects.length > 1) {
+            const selection = new fabric.ActiveSelection(objects, {
+                canvas: this.canvas,
+            });
+            this.canvas.setActiveObject(selection);
+        }
     }
 
     // 获取历史记录状态
