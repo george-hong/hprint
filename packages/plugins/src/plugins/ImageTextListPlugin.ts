@@ -299,6 +299,7 @@ class ImageTextListPlugin implements IPluginTempl {
             fabric.Image.fromURL(
                 src,
                 (image) => {
+                    if (!image) return resolve(null);
                     image.set({
                         scaleX: size / Math.max(1, image.width || 1),
                         scaleY: size / Math.max(1, image.height || 1),
