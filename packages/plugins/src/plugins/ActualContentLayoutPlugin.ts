@@ -60,17 +60,19 @@ class ActualContentLayoutPlugin implements IPluginTempl {
             .getObjects()
             .filter(this.isPrintableObject);
         const mmPerPx = Number(this.editor.getSizeByUnit?.(1, 'mm')) || 1;
+        const sourceObjects = this.getTemplateSourceObjects(templateContent);
 
         fabricObjects.forEach((object) => this.preparePrintLayoutObject(object));
 
         const entries = fabricObjects.map((object, index) => {
             const origin = this.layoutOrigins.get(object);
+            const source = this.getSourceObject(object, sourceObjects);
             const originalTop =
-                origin?.top ?? Number(object.top || 0) * mmPerPx;
+                origin?.top ??
+                this.getOriginalTop(source, object, mmPerPx);
             const originalHeight =
                 origin?.height ??
-                Number(object.getScaledHeight?.() || object.height || 0) *
-                    mmPerPx;
+                this.getOriginalHeight(source, object, mmPerPx);
             return {
                 object,
                 index,
@@ -189,6 +191,29 @@ class ActualContentLayoutPlugin implements IPluginTempl {
         );
     }
 
+    private getTemplateSourceObjects(templateContent: any) {
+        const sourceObjects = new Map<string, any>();
+        if (!Array.isArray(templateContent?.objects)) return sourceObjects;
+        templateContent.objects.forEach((source: any, index: number) => {
+            if (source?.id) sourceObjects.set(`id:${source.id}`, source);
+            sourceObjects.set(`index:${index}`, source);
+        });
+        return sourceObjects;
+    }
+
+    private getSourceObject(
+        object: any,
+        sourceObjects: Map<string, any>
+    ) {
+        if (object?.id) {
+            const source = sourceObjects.get(`id:${object.id}`);
+            if (source) return source;
+        }
+        const objects = this.canvas.getObjects().filter(this.isPrintableObject);
+        const index = objects.indexOf(object);
+        return sourceObjects.get(`index:${index}`);
+    }
+
     private getOriginMmValue(
         source: any,
         field: 'top' | 'height',
@@ -235,7 +260,10 @@ class ActualContentLayoutPlugin implements IPluginTempl {
             return String(object.text ?? '') === '';
         }
         if (['barcode', 'qrcode'].includes(object.extensionType)) {
-            return String(object.extension?.value ?? '') === '';
+            return (
+                String(object.extension?.value ?? '') === '' &&
+                !this.hasVisibleImageSource(object)
+            );
         }
         if (object.extensionType === 'imageTextList') {
             return (
@@ -244,6 +272,11 @@ class ActualContentLayoutPlugin implements IPluginTempl {
             );
         }
         return false;
+    }
+
+    private hasVisibleImageSource(object: any) {
+        const src = String(object?.getSrc?.() ?? object?.src ?? '');
+        return src !== '' && /^data:image\//i.test(src);
     }
 
     private getActualLayoutHeight(object: any) {

@@ -51,6 +51,24 @@ class QrCodePlugin implements IPluginTempl {
         }
     }
 
+    async hookImportAfter() {
+        const qrcodeObjects = this.canvas
+            .getObjects()
+            .filter(
+                (obj: any) =>
+                    obj.type === 'image' && obj.extensionType === 'qrcode'
+            ) as fabric.Image[];
+
+        await Promise.all(
+            qrcodeObjects.map(async (imgEl) => {
+                this.initQrcodeEvents(imgEl);
+                await this._updateQrCodeImage(imgEl, true);
+            })
+        );
+
+        this.canvas.renderAll();
+    }
+
     async _getQrCodeResult(options: any): Promise<{ url: string; width: number; height: number }> {
         const zoom = this.canvas.getZoom() || 1;
         const dpr = (window && (window as any).devicePixelRatio) || 1;
