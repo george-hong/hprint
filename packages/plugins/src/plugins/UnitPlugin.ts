@@ -1,6 +1,5 @@
 import type { IEditor, IPluginTempl } from '@hprint/core';
 import { LengthConvert } from '@hprint/shared';
-import { syncMmFromObject } from '../utils/units';
 import { fabric } from '@hprint/core';
 import { throttle } from 'lodash-es';
 
@@ -307,12 +306,15 @@ class UnitPlugin implements IPluginTempl {
 
     _bindEvents() {
         const throttledSync = throttle((obj: fabric.Object) => {
-            syncMmFromObject(obj, undefined, this.precision);
+            // 多选坐标只需在 object:modified 时同步，避免拖动过程中反复创建计算对象。
+            if (obj.type !== 'activeSelection') {
+                (obj as any).syncOriginSizeByUnit?.();
+            }
         }, 30);
 
         this.canvas.on('object:modified', (e: any) => {
             const target = e.target as fabric.Object | undefined;
-            if (target) syncMmFromObject(target, undefined, this.precision);
+            if (target) this._syncTargetOriginSize(target);
         });
 
         this.canvas.on('object:moving', (e: any) => {
@@ -338,6 +340,37 @@ class UnitPlugin implements IPluginTempl {
                 return
             }
         });
+    }
+
+    _syncTargetOriginSize(target: fabric.Object) {
+        if (target.type !== 'activeSelection') {
+            (target as any).syncOriginSizeByUnit?.();
+            return;
+        }
+
+        // 将 ActiveSelection 的平移和旋转真正应用到每个子元素。
+        // 之后重新创建选区，避免子元素继续保留相对于旧选区的坐标。
+        const objects = (target as fabric.ActiveSelection).getObjects();
+        const absoluteAngles = new Map<fabric.Object, number>();
+        objects.forEach((item: fabric.Object) => {
+            // item.angle 在 ActiveSelection 内是相对角度。必须先通过完整变换矩阵
+            // 取得画布上的绝对角度，再销毁选区并写回子元素。
+            const { angle } = fabric.util.qrDecompose(item.calcTransformMatrix());
+            absoluteAngles.set(item, ((angle % 360) + 360) % 360);
+        });
+        this.canvas.discardActiveObject();
+        objects.forEach((item: fabric.Object) => {
+            item.set('angle', absoluteAngles.get(item) ?? 0);
+            item.setCoords();
+            // 仅同步位置；旋转角度已由 ActiveSelection 变换写回 item.angle。
+            (item as any).syncOriginSizeByUnit?.(['left', 'top']);
+        });
+
+        const normalizedSelection = new fabric.ActiveSelection(objects, {
+            canvas: this.canvas,
+        });
+        this.canvas.setActiveObject(normalizedSelection);
+        this.canvas.requestRenderAll();
     }
 
     destroy() {

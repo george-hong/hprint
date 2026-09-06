@@ -275,6 +275,34 @@ class ControlsPlugin implements IPluginTempl {
      * 自定义多选控制点，添加白色填充并确保在边框上方
      */
     customizeActiveSelection() {
+        const scaleControlVisibility = {
+            tl: false,
+            tr: false,
+            bl: false,
+            br: false,
+            ml: false,
+            mr: false,
+            mt: false,
+            mb: false,
+        };
+
+        const disableActiveSelectionScaling = (target?: fabric.Object) => {
+            const activeObject = target || this.canvas.getActiveObject();
+            if (!activeObject || activeObject.type !== 'activeSelection') return;
+
+            if (!activeObject.lockScalingX || !activeObject.lockScalingY) {
+                activeObject.set({
+                    lockScalingX: true,
+                    lockScalingY: true,
+                });
+            }
+            Object.entries(scaleControlVisibility).forEach(([key, visible]) => {
+                if (activeObject.isControlVisible(key) !== visible) {
+                    activeObject.setControlVisible(key, visible);
+                }
+            });
+        };
+
         // 自定义控制点渲染函数
         const renderCircleControl = (
             ctx: CanvasRenderingContext2D,
@@ -326,21 +354,30 @@ class ControlsPlugin implements IPluginTempl {
             }
         });
 
-        // 应用样式配置
-        fabric.ActiveSelection.prototype.set(CONTROL_STYLES);
+        // 设置原型默认值，确保鼠标框选和代码创建的 ActiveSelection 均不可缩放。
+        fabric.ActiveSelection.prototype.set({
+            ...CONTROL_STYLES,
+            lockScalingX: true,
+            lockScalingY: true,
+        });
+        fabric.ActiveSelection.prototype.setControlsVisibility(scaleControlVisibility);
+
+        // 多选只允许整体移动和旋转，不允许通过控制点或快捷操作缩放。
+        this.canvas.on('selection:created', (e: any) => {
+            disableActiveSelectionScaling(e.target);
+        });
+        this.canvas.on('selection:updated', (e: any) => {
+            disableActiveSelectionScaling(e.target);
+        });
+        this.canvas.on('before:render', () => {
+            disableActiveSelectionScaling();
+        });
         
-        // 跟踪是否正在移动或缩放对象
+        // 跟踪是否正在移动或旋转对象
         let isTransforming = false;
         
         // 监听对象移动开始
         this.canvas.on('object:moving', (e: any) => {
-            if (e.target && e.target.type === 'activeSelection') {
-                isTransforming = true;
-            }
-        });
-        
-        // 监听对象缩放开始
-        this.canvas.on('object:scaling', (e: any) => {
             if (e.target && e.target.type === 'activeSelection') {
                 isTransforming = true;
             }
@@ -371,7 +408,7 @@ class ControlsPlugin implements IPluginTempl {
         
         // 监听canvas的after:render事件，在所有内容渲染完成后额外绘制多选控制点
         this.canvas.on('after:render', () => {
-            // 如果正在变换（移动、缩放、旋转），不绘制控制点
+            // 如果正在变换（移动、旋转），不绘制控制点
             if (isTransforming) return;
             
             const activeObject = this.canvas.getActiveObject();

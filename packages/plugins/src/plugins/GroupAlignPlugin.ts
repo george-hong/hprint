@@ -36,6 +36,18 @@ class GroupAlignPlugin implements IPluginTempl {
         public editor: IEditor
     ) { }
 
+    _refreshObjectCoordinates(objects: fabric.Object[]) {
+        objects.forEach((item) => {
+            item.setCoords();
+            (item as any).syncOriginSizeByUnit?.(['left', 'top']);
+        });
+    }
+
+    _notifySelectionModified(selection: fabric.ActiveSelection) {
+        this.canvas.fire('object:modified', { target: selection });
+        this.canvas.requestRenderAll();
+    }
+
     left() {
         const { canvas } = this;
 
@@ -51,11 +63,12 @@ class GroupAlignPlugin implements IPluginTempl {
                 });
                 item.setCoords();
             });
+            this._refreshObjectCoordinates(selectObjects);
             const activeSelection = new fabric.ActiveSelection(selectObjects, {
                 canvas: canvas,
             });
             canvas.setActiveObject(activeSelection);
-            canvas.requestRenderAll();
+            this._notifySelectionModified(activeSelection);
         }
     }
 
@@ -77,11 +90,12 @@ class GroupAlignPlugin implements IPluginTempl {
                         Number(item.left),
                 });
             });
+            this._refreshObjectCoordinates(selectObjects);
             const activeSelection = new fabric.ActiveSelection(selectObjects, {
                 canvas: canvas,
             });
             canvas.setActiveObject(activeSelection);
-            canvas.requestRenderAll();
+            this._notifySelectionModified(activeSelection);
         }
     }
 
@@ -103,11 +117,12 @@ class GroupAlignPlugin implements IPluginTempl {
                         Number(item.left),
                 });
             });
+            this._refreshObjectCoordinates(selectObjects);
             const activeSelection = new fabric.ActiveSelection(selectObjects, {
                 canvas: canvas,
             });
             canvas.setActiveObject(activeSelection);
-            canvas.requestRenderAll();
+            this._notifySelectionModified(activeSelection);
         }
     }
 
@@ -129,11 +144,12 @@ class GroupAlignPlugin implements IPluginTempl {
                         Number(item.top),
                 });
             });
+            this._refreshObjectCoordinates(selectObjects);
             const activeSelection = new fabric.ActiveSelection(selectObjects, {
                 canvas: canvas,
             });
             canvas.setActiveObject(activeSelection);
-            canvas.requestRenderAll();
+            this._notifySelectionModified(activeSelection);
         }
     }
 
@@ -151,11 +167,12 @@ class GroupAlignPlugin implements IPluginTempl {
                     top: top - bounding.top + Number(item.top),
                 });
             });
+            this._refreshObjectCoordinates(selectObjects);
             const activeSelection = new fabric.ActiveSelection(selectObjects, {
                 canvas: canvas,
             });
             canvas.setActiveObject(activeSelection);
-            canvas.requestRenderAll();
+            this._notifySelectionModified(activeSelection);
         }
     }
 
@@ -177,11 +194,12 @@ class GroupAlignPlugin implements IPluginTempl {
                         Number(item.top),
                 });
             });
+            this._refreshObjectCoordinates(selectObjects);
             const activeSelection = new fabric.ActiveSelection(selectObjects, {
                 canvas: canvas,
             });
             canvas.setActiveObject(activeSelection);
-            canvas.requestRenderAll();
+            this._notifySelectionModified(activeSelection);
         }
     }
 
@@ -266,11 +284,13 @@ class GroupAlignPlugin implements IPluginTempl {
             item.set('left', 2 * item.left - x);
         });
 
+        this._refreshObjectCoordinates(objecs);
+
         const sel = new fabric.ActiveSelection(objecs, {
             canvas: canvas,
         });
         canvas.setActiveObject(sel);
-        canvas.requestRenderAll();
+        this._notifySelectionModified(sel);
     }
 
     yequation() {
@@ -350,11 +370,13 @@ class GroupAlignPlugin implements IPluginTempl {
             item.set('top', 2 * item.top - y);
         });
 
+        this._refreshObjectCoordinates(objecs);
+
         const sel = new fabric.ActiveSelection(objecs, {
             canvas: canvas,
         });
         canvas.setActiveObject(sel);
-        canvas.requestRenderAll();
+        this._notifySelectionModified(sel);
     }
 
     destroy() {
