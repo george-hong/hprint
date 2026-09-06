@@ -4,7 +4,12 @@ import verticalImg from '../assets/middlecontrol.svg?url';
 import horizontalImg from '../assets/middlecontrolhoz.svg?url';
 import edgeImg from '../assets/edgecontrol.svg?url';
 import rotateImg from '../assets/rotateicon.svg?url';
-import type { IEditor, IPluginTempl } from '@hprint/core';
+import type { IEditor, IPluginOption, IPluginTempl } from '@hprint/core';
+
+interface ControlsPluginOptions extends IPluginOption {
+    /** 是否禁用多选对象的整体缩放，默认保留 Fabric 的缩放能力。 */
+    disableActiveSelectionScaling?: boolean;
+}
 
 /**
  * 实际场景: 在进行某个对象缩放的时候，由于fabricjs默认精度使用的是toFixed(2)。
@@ -228,7 +233,8 @@ class ControlsPlugin implements IPluginTempl {
     static pluginName = 'ControlsPlugin';
     constructor(
         public canvas: fabric.Canvas,
-        public editor: IEditor
+        public editor: IEditor,
+        private options: ControlsPluginOptions = {}
     ) {
         this.init();
     }
@@ -275,6 +281,8 @@ class ControlsPlugin implements IPluginTempl {
      * 自定义多选控制点，添加白色填充并确保在边框上方
      */
     customizeActiveSelection() {
+        const shouldDisableActiveSelectionScaling =
+            this.options.disableActiveSelectionScaling === true;
         const scaleControlVisibility = {
             tl: false,
             tr: false,
@@ -287,6 +295,8 @@ class ControlsPlugin implements IPluginTempl {
         };
 
         const disableActiveSelectionScaling = (target?: fabric.Object) => {
+            if (!shouldDisableActiveSelectionScaling) return;
+
             const activeObject = target || this.canvas.getActiveObject();
             if (!activeObject || activeObject.type !== 'activeSelection') return;
 
@@ -354,30 +364,33 @@ class ControlsPlugin implements IPluginTempl {
             }
         });
 
-        // 设置原型默认值，确保鼠标框选和代码创建的 ActiveSelection 均不可缩放。
-        fabric.ActiveSelection.prototype.set({
-            ...CONTROL_STYLES,
-            lockScalingX: true,
-            lockScalingY: true,
-        });
-        fabric.ActiveSelection.prototype.setControlsVisibility(scaleControlVisibility);
-
-        // 多选只允许整体移动和旋转，不允许通过控制点或快捷操作缩放。
-        this.canvas.on('selection:created', (e: any) => {
-            disableActiveSelectionScaling(e.target);
-        });
-        this.canvas.on('selection:updated', (e: any) => {
-            disableActiveSelectionScaling(e.target);
-        });
-        this.canvas.on('before:render', () => {
-            disableActiveSelectionScaling();
-        });
+        // hprint 默认保留多选缩放；由业务方按编辑器实例决定是否关闭。
+        fabric.ActiveSelection.prototype.set(CONTROL_STYLES);
+        if (shouldDisableActiveSelectionScaling) {
+            this.canvas.on('selection:created', (e: any) => {
+                disableActiveSelectionScaling(e.target);
+            });
+            this.canvas.on('selection:updated', (e: any) => {
+                disableActiveSelectionScaling(e.target);
+            });
+            // 覆盖鼠标框选和代码创建 ActiveSelection 未经过选择事件的情况。
+            this.canvas.on('before:render', () => {
+                disableActiveSelectionScaling();
+            });
+        }
         
-        // 跟踪是否正在移动或旋转对象
+        // 跟踪是否正在移动、缩放或旋转对象
         let isTransforming = false;
         
         // 监听对象移动开始
         this.canvas.on('object:moving', (e: any) => {
+            if (e.target && e.target.type === 'activeSelection') {
+                isTransforming = true;
+            }
+        });
+
+        // 未关闭多选缩放时，缩放期间不重复绘制控制点。
+        this.canvas.on('object:scaling', (e: any) => {
             if (e.target && e.target.type === 'activeSelection') {
                 isTransforming = true;
             }
