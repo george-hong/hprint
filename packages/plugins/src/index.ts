@@ -39,6 +39,7 @@ import PrintPlugin from './plugins/PrintPlugin';
 import CreateElementPlugin from './plugins/CreateElementPlugin';
 import ImageTextListPlugin from './plugins/ImageTextListPlugin';
 import ActualContentLayoutPlugin from './plugins/ActualContentLayoutPlugin';
+import TablePlugin from './plugins/TablePlugin';
 
 // 对象形式导出所有插件
 const pluginsObject: { [key: string]: IPluginTempl } = {
@@ -80,6 +81,7 @@ const pluginsObject: { [key: string]: IPluginTempl } = {
     CreateElementPlugin,
     ImageTextListPlugin,
     ActualContentLayoutPlugin,
+    TablePlugin,
 };
 
 // 数组形式导出所有插件
@@ -122,6 +124,14 @@ const pluginsList: IPluginTempl[] = [
     CreateElementPlugin,
     ImageTextListPlugin,
     ActualContentLayoutPlugin,
+    TablePlugin,
 ];
 
 export { pluginsObject, pluginsList, SelectEvent, SelectMode };
+export type {
+    ITableItem,
+    TableColumn,
+    TableOptions,
+    TableGroup,
+} from './plugins/TablePlugin';
+export { normalizeTableColumns } from './plugins/TablePlugin';

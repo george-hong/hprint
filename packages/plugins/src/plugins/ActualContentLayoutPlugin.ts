@@ -61,6 +61,8 @@ class ActualContentLayoutPlugin implements IPluginTempl {
             .filter(this.isPrintableObject);
         const mmPerPx = Number(this.editor.getSizeByUnit?.(1, 'mm')) || 1;
         const sourceObjects = this.getTemplateSourceObjects(templateContent);
+        const unitFactor = mmPerPx;
+        const tolerance = 0.01;
 
         fabricObjects.forEach((object) => this.preparePrintLayoutObject(object));
 
@@ -143,8 +145,14 @@ class ActualContentLayoutPlugin implements IPluginTempl {
         });
 
         this.canvas.requestRenderAll();
+        const hasExpandedTable = entries.some(
+            (entry) =>
+                (entry.object as any)?.extensionType === 'table' &&
+                this.getActualLayoutHeight(entry.object) * unitFactor >
+                    entry.originalBottom - entry.originalTop + tolerance
+        );
         if (
-            settings.overflowMode !== 'expand' ||
+            (!hasExpandedTable && settings.overflowMode !== 'expand') ||
             previousActualBottom === undefined
         ) {
             return templateHeight;
@@ -232,7 +240,7 @@ class ActualContentLayoutPlugin implements IPluginTempl {
     }
 
     private preparePrintLayoutObject(object: any) {
-        if (object?.extensionType !== 'imageTextList') return;
+        if (!['imageTextList', 'table'].includes(object?.extensionType)) return;
         if (object.extension?._clipContent === true) return;
 
         // Design canvases can opt into clipping, but print/layout canvases should
