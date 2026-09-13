@@ -9,3 +9,9 @@ export { Utils, CustomRect, CustomTextbox, fabric, Canvas, Point, IEvent };
 export default Editor;
 
 export * from './interface/Editor';
+export type {
+    PrintExportOptions,
+    PrintExportResult,
+    PrintRotation,
+    PrintSVGExportOptions,
+} from './ServersPlugin';

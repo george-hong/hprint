@@ -2,6 +2,13 @@ import Editor, { IPluginOption } from '@hprint/core';
 import { pluginsList, SelectEvent, SelectMode } from '@hprint/plugins';
 import { fabric, LengthConvert } from '@hprint/shared';
 
+export type {
+    PrintExportOptions,
+    PrintExportResult,
+    PrintRotation,
+    PrintSVGExportOptions,
+} from '@hprint/core';
+
 const usePlugins = (
     editor: Editor,
     options?: {

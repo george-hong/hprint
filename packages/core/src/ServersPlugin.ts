@@ -4,6 +4,24 @@ import { fabric, StaticCanvas } from 'fabric';
 import type { IEditor, IPluginTempl } from '@hprint/core';
 import { SelectEvent, SelectMode } from '../../plugins/src/types/eventType';
 
+export type PrintRotation = 0 | 90 | 180 | 270;
+
+export interface PrintExportOptions {
+    rotation?: PrintRotation | number;
+}
+
+export interface PrintSVGExportOptions extends PrintExportOptions {
+    width?: string;
+    height?: string;
+}
+
+export interface PrintExportResult {
+    content: string;
+    width: number;
+    height: number;
+    rotation: PrintRotation;
+}
+
 type IPlugin = Pick<
     ServersPlugin,
     | 'insert'
@@ -15,7 +33,9 @@ type IPlugin = Pick<
     | 'saveJson'
     | 'saveSvg'
     | 'getBase64'
+    | 'getBase64Result'
     | 'getSVG'
+    | 'getSVGResult'
     | 'saveImg'
     | 'clear'
     | 'preview'
@@ -54,7 +74,9 @@ class ServersPlugin implements IPluginTempl {
         'saveSvg',
         'saveImg',
         'getBase64',
+        'getBase64Result',
         'getSVG',
+        'getSVGResult',
         'clear',
         'preview',
         'staticPreview',
@@ -312,20 +334,42 @@ class ServersPlugin implements IPluginTempl {
         });
     }
 
-    getBase64() {
+    getBase64(options?: PrintExportOptions) {
         return new Promise<string>((resolve) => {
             this.editor.hooksEntity.hookSaveBefore.callAsync('', () => {
                 const option = this._getSaveOption();
                 this.canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
                 const dataUrl = this.canvas.toDataURL(option);
-                this.editor.hooksEntity.hookSaveAfter.callAsync(dataUrl, () =>
-                    resolve(dataUrl)
+                void this.rotateBase64(dataUrl, options?.rotation).then(
+                    (content) => {
+                        this.editor.hooksEntity.hookSaveAfter.callAsync(
+                            content,
+                            () => resolve(content)
+                        );
+                    },
+                    () => {
+                        this.editor.hooksEntity.hookSaveAfter.callAsync(
+                            dataUrl,
+                            () => resolve(dataUrl)
+                        );
+                    }
                 );
             });
         });
     }
 
-    getSVG(options?: { width?: string; height?: string }) {
+    async getBase64Result(
+        options?: PrintExportOptions
+    ): Promise<PrintExportResult> {
+        const rotation = this.normalizePrintRotation(options?.rotation);
+        return {
+            content: await this.getBase64({ rotation }),
+            ...this.getPrintExportSize(rotation),
+            rotation,
+        };
+    }
+
+    getSVG(options?: PrintSVGExportOptions) {
         return new Promise<string>((resolve) => {
             this.editor.hooksEntity.hookSaveBefore.callAsync('', () => {
                 this.canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
@@ -337,13 +381,27 @@ class ServersPlugin implements IPluginTempl {
                 fabric.fontPaths = {
                     ...fontOption,
                 };
-                const svg = this.canvas.toSVG(svgOption);
+                const svg = this.rotateSVG(
+                    this.canvas.toSVG(svgOption),
+                    options?.rotation
+                );
                 // this._printSvgString(svg);
                 this.editor.hooksEntity.hookSaveAfter.callAsync(svg, () =>
                     resolve(svg)
                 );
             });
         });
+    }
+
+    async getSVGResult(
+        options?: PrintSVGExportOptions
+    ): Promise<PrintExportResult> {
+        const rotation = this.normalizePrintRotation(options?.rotation);
+        return {
+            content: await this.getSVG({ ...options, rotation }),
+            ...this.getPrintExportSize(rotation),
+            rotation,
+        };
     }
 
     preview() {
@@ -421,6 +479,124 @@ class ServersPlugin implements IPluginTempl {
             top,
         };
         return option;
+    }
+
+    private normalizePrintRotation(rotation?: number): PrintRotation {
+        return [0, 90, 180, 270].includes(Number(rotation))
+            ? (Number(rotation) as PrintRotation)
+            : 0;
+    }
+
+    private getPrintExportSize(rotation: PrintRotation) {
+        const workspace = this.canvas
+            .getObjects()
+            .find((item: fabric.Object) => item.id === 'workspace') as
+            | fabric.Object
+            | undefined;
+        const getSizeByUnit = (this.editor as any).getSizeByUnit;
+        const width = workspace
+            ? getSizeByUnit
+                ? getSizeByUnit.call(this.editor, workspace.width || 0)
+                : workspace.width || 0
+            : 0;
+        const height = workspace
+            ? getSizeByUnit
+                ? getSizeByUnit.call(this.editor, workspace.height || 0)
+                : workspace.height || 0
+            : 0;
+        return rotation === 90 || rotation === 270
+            ? { width: height, height: width }
+            : { width, height };
+    }
+
+    private rotateBase64(dataUrl: string, rotation?: number) {
+        const normalizedRotation = this.normalizePrintRotation(rotation);
+        if (!normalizedRotation || typeof Image === 'undefined') {
+            return Promise.resolve(dataUrl);
+        }
+        return new Promise<string>((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => {
+                const canvas = document.createElement('canvas');
+                const swapSize =
+                    normalizedRotation === 90 || normalizedRotation === 270;
+                canvas.width = swapSize ? image.height : image.width;
+                canvas.height = swapSize ? image.width : image.height;
+                const context = canvas.getContext('2d');
+                if (!context) {
+                    reject(new Error('无法创建旋转画布'));
+                    return;
+                }
+                if (normalizedRotation === 90) {
+                    context.translate(canvas.width, 0);
+                } else if (normalizedRotation === 180) {
+                    context.translate(canvas.width, canvas.height);
+                } else if (normalizedRotation === 270) {
+                    context.translate(0, canvas.height);
+                }
+                context.rotate((normalizedRotation * Math.PI) / 180);
+                context.drawImage(image, 0, 0);
+                const mimeType = /^data:([^;,]+)/i.exec(dataUrl)?.[1];
+                resolve(canvas.toDataURL(mimeType || 'image/jpeg', 1));
+            };
+            image.onerror = () => reject(new Error('无法读取导出图片'));
+            image.src = dataUrl;
+        });
+    }
+
+    private rotateSVG(svg: string, rotation?: number) {
+        const normalizedRotation = this.normalizePrintRotation(rotation);
+        if (!normalizedRotation || typeof DOMParser === 'undefined') return svg;
+        const document = new DOMParser().parseFromString(svg, 'image/svg+xml');
+        const root = document.documentElement;
+        if (!root || root.nodeName === 'parsererror') return svg;
+        const values = String(root.getAttribute('viewBox') || '')
+            .trim()
+            .split(/[\s,]+/)
+            .map(Number);
+        if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {
+            return svg;
+        }
+        const [x, y, width, height] = values;
+        const originalWidth = root.getAttribute('width');
+        const originalHeight = root.getAttribute('height');
+        const transforms: Record<Exclude<PrintRotation, 0>, string> = {
+            90: `translate(${height} 0) rotate(90) translate(${-x} ${-y})`,
+            180: `translate(${width} ${height}) rotate(180) translate(${-x} ${-y})`,
+            270: `translate(0 ${width}) rotate(270) translate(${-x} ${-y})`,
+        };
+        const transform = transforms[
+            normalizedRotation as Exclude<PrintRotation, 0>
+        ];
+        const content = document.createElementNS(
+            'http://www.w3.org/2000/svg',
+            'g'
+        );
+        content.setAttribute(
+            'transform',
+            transform
+        );
+
+        Array.from(root.childNodes).forEach((node) => {
+            if (
+                node.nodeType === 1 &&
+                ['defs', 'style', 'desc', 'title', 'metadata'].includes(
+                    (node as Element).localName
+                )
+            ) {
+                return;
+            }
+            content.appendChild(node);
+        });
+        root.appendChild(content);
+        if (normalizedRotation === 90 || normalizedRotation === 270) {
+            root.setAttribute('viewBox', `0 0 ${height} ${width}`);
+            if (originalHeight) root.setAttribute('width', originalHeight);
+            if (originalWidth) root.setAttribute('height', originalWidth);
+        } else {
+            root.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        }
+        return new XMLSerializer().serializeToString(root);
     }
 
     clear() {

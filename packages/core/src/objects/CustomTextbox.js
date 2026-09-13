@@ -6,6 +6,71 @@ import { fabric } from 'fabric';
 fabric.Textbox = fabric.util.createClass(fabric.Textbox, {
     type: 'textbox',
 
+    _getLineHeightPadding: function () {
+        if (!this.lineHeightPadding || !this._textLines.length) return 0;
+        var lineHeight = this.getHeightOfLine(0);
+        return (lineHeight - lineHeight / this.lineHeight) / 2;
+    },
+
+    calcTextHeight: function () {
+        if (!this.lineHeightPadding) {
+            return this.callSuper('calcTextHeight');
+        }
+        var height = 0;
+        for (var i = 0, len = this._textLines.length; i < len; i++) {
+            height += this.getHeightOfLine(i);
+        }
+        return height;
+    },
+
+    _renderTextCommon: function (ctx, method) {
+        if (!this.lineHeightPadding) {
+            return this.callSuper('_renderTextCommon', ctx, method);
+        }
+        ctx.save();
+        var lineHeights = 0,
+            left = this._getLeftOffset(),
+            top = this._getTopOffset() + this._getLineHeightPadding();
+        for (var i = 0, len = this._textLines.length; i < len; i++) {
+            var heightOfLine = this.getHeightOfLine(i),
+                maxHeight = heightOfLine / this.lineHeight,
+                leftOffset = this._getLineLeftOffset(i);
+            this._renderTextLine(
+                method,
+                ctx,
+                this._textLines[i],
+                left + leftOffset,
+                top + lineHeights + maxHeight,
+                i
+            );
+            lineHeights += heightOfLine;
+        }
+        ctx.restore();
+    },
+
+    _getSVGLeftTopOffsets: function () {
+        var offsets = this.callSuper('_getSVGLeftTopOffsets');
+        if (this.lineHeightPadding) {
+            offsets.textTop += this._getLineHeightPadding();
+        }
+        return offsets;
+    },
+
+    _getCursorBoundaries: function (position) {
+        var boundaries = this.callSuper('_getCursorBoundaries', position);
+        if (this.lineHeightPadding) {
+            boundaries.top += this._getLineHeightPadding();
+        }
+        return boundaries;
+    },
+
+    toObject: function (propertiesToInclude) {
+        return this.callSuper('toObject', [
+            ...(propertiesToInclude || []),
+            'lineHeightPadding',
+        ]);
+    },
+
     _renderChars: function (method, ctx, line, left, top, lineIndex) {
         // set proper line offset
         var lineHeight = this.getHeightOfLine(lineIndex),
