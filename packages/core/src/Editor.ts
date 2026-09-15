@@ -3,7 +3,7 @@ import hotkeys from 'hotkeys-js';
 import ContextMenu from './ContextMenu.js';
 import ServersPlugin from './ServersPlugin';
 import { AsyncSeriesHook } from 'tapable';
-import { fabric } from '@hprint/shared';
+import { fabric } from 'fabric';
 import type {
     IPluginMenu,
     IPluginClass,

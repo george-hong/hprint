@@ -1,6 +1,6 @@
-import Editor, { IPluginOption } from '@hprint/core';
+import Editor, { IPluginOption, fabric } from '@hprint/core';
 import { pluginsList, SelectEvent, SelectMode } from '@hprint/plugins';
-import { fabric, LengthConvert } from '@hprint/shared';
+import { LengthConvert } from '@hprint/shared';
 
 export type {
     PrintExportOptions,
