@@ -25,6 +25,7 @@ export interface ITableItem {
 }
 
 export interface TableOptions {
+    fixedPosition?: boolean;
     width?: number;
     height?: number;
     headerHeight?: number;

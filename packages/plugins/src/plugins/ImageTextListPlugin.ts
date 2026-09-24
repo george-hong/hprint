@@ -14,6 +14,7 @@ export interface ImageTextListItem {
 }
 
 export interface ImageTextListOptions {
+    fixedPosition?: boolean;
     items?: ImageTextListItem[];
     _renderItems?: ImageTextListItem[];
     _clipContent?: boolean;

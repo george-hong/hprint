@@ -66,22 +66,32 @@ class ActualContentLayoutPlugin implements IPluginTempl {
 
         fabricObjects.forEach((object) => this.preparePrintLayoutObject(object));
 
-        const entries = fabricObjects.map((object, index) => {
+        const entries: LayoutEntry[] = [];
+        fabricObjects.forEach((object, index) => {
             const origin = this.layoutOrigins.get(object);
             const source = this.getSourceObject(object, sourceObjects);
             const originalTop =
                 origin?.top ??
                 this.getOriginalTop(source, object, mmPerPx);
+            if (source?.extension?.fixedPosition === true) {
+                const originalLeft = Number(source.left);
+                if (Number.isFinite(originalLeft)) {
+                    object.set('left', originalLeft);
+                }
+                object.set('top', originalTop / mmPerPx);
+                object.setCoords();
+                return;
+            }
             const originalHeight =
                 origin?.height ??
                 this.getOriginalHeight(source, object, mmPerPx);
-            return {
+            entries.push({
                 object,
                 index,
                 originalTop,
                 originalBottom: originalTop + originalHeight,
-            };
-        }) as LayoutEntry[];
+            });
+        });
 
         entries.sort(
             (a, b) => a.originalTop - b.originalTop || a.index - b.index
