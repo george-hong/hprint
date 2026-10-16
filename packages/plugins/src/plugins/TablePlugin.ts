@@ -249,8 +249,13 @@ class TablePlugin implements IPluginTempl {
 
     async hookTransform(object: any) {
         if (object.extensionType !== 'table') return;
-        const left = object.left;
-        const top = object.top;
+        // Rebuilding children must preserve the saved group's transform.
+        // A new Group defaults to angle=0, which otherwise overwrites rotation.
+        const transform = Object.fromEntries(
+            ['id', 'left', 'top', 'angle', 'originX', 'originY', 'scaleX', 'scaleY',
+                'flipX', 'flipY', 'skewX', 'skewY'].filter(key => object[key] !== undefined)
+                .map(key => [key, object[key]])
+        );
         const sourceExtension = { ...(object.extension || {}) };
         if (!Number.isFinite(Number(sourceExtension.height))) {
             const unit = getUnit(this.editor);
@@ -270,8 +275,7 @@ class TablePlugin implements IPluginTempl {
             this.editor.getExtensionKey?.() || []
         );
         Object.assign(object, transformed, {
-            left,
-            top,
+            ...transform,
             extensionType: 'table',
             extension,
         });

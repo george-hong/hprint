@@ -334,74 +334,109 @@ class ServersPlugin implements IPluginTempl {
         });
     }
 
-    getBase64(options?: PrintExportOptions) {
-        return new Promise<string>((resolve) => {
-            this.editor.hooksEntity.hookSaveBefore.callAsync('', () => {
-                const option = this._getSaveOption();
-                this.canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-                const dataUrl = this.canvas.toDataURL(option);
-                void this.rotateBase64(dataUrl, options?.rotation).then(
-                    (content) => {
-                        this.editor.hooksEntity.hookSaveAfter.callAsync(
-                            content,
-                            () => resolve(content)
-                        );
-                    },
-                    () => {
-                        this.editor.hooksEntity.hookSaveAfter.callAsync(
-                            dataUrl,
-                            () => resolve(dataUrl)
-                        );
+    private exportBase64(options?: PrintExportOptions) {
+        const rotation = this.normalizePrintRotation(options?.rotation);
+        return new Promise<PrintExportResult>((resolve, reject) => {
+            let size = { width: 0, height: 0 };
+            const finish = (content: string, error?: unknown) => {
+                this.editor.hooksEntity.hookSaveAfter.callAsync(
+                    content,
+                    (hookError?: unknown) => {
+                        const failure = error || hookError;
+                        if (failure) reject(failure);
+                        else resolve({ content, ...size, rotation });
                     }
                 );
-            });
+            };
+            this.editor.hooksEntity.hookSaveBefore.callAsync(
+                '',
+                (error?: unknown) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    try {
+                        const option = this._getSaveOption();
+                        size = this.getPrintExportSize(rotation);
+                        this.canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+                        const dataUrl = this.canvas.toDataURL(option);
+                        void this.rotateBase64(dataUrl, rotation).then(
+                            (content) => finish(content),
+                            (error) => finish(dataUrl, error)
+                        );
+                    } catch (error) {
+                        finish('', error);
+                    }
+                }
+            );
         });
+    }
+
+    getBase64(options?: PrintExportOptions) {
+        return this.exportBase64(options).then((result) => result.content);
     }
 
     async getBase64Result(
         options?: PrintExportOptions
     ): Promise<PrintExportResult> {
+        return this.exportBase64(options);
+    }
+
+    private exportSVG(options?: PrintSVGExportOptions) {
         const rotation = this.normalizePrintRotation(options?.rotation);
-        return {
-            content: await this.getBase64({ rotation }),
-            ...this.getPrintExportSize(rotation),
-            rotation,
-        };
+        return new Promise<PrintExportResult>((resolve, reject) => {
+            let size = { width: 0, height: 0 };
+            const finish = (content: string, error?: unknown) => {
+                this.editor.hooksEntity.hookSaveAfter.callAsync(
+                    content,
+                    (hookError?: unknown) => {
+                        const failure = error || hookError;
+                        if (failure) reject(failure);
+                        else resolve({ content, ...size, rotation });
+                    }
+                );
+            };
+            this.editor.hooksEntity.hookSaveBefore.callAsync(
+                '',
+                (error?: unknown) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    try {
+                        size = this.getPrintExportSize(rotation);
+                        this.canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+                        const { fontOption, svgOption } =
+                            this._getSaveSvgOption({
+                                ignoreFont: true,
+                                width: options?.width,
+                                height: options?.height,
+                            });
+                        fabric.fontPaths = {
+                            ...fontOption,
+                        };
+                        const svg = this.rotateSVG(
+                            this.canvas.toSVG(svgOption),
+                            rotation
+                        );
+                        // this._printSvgString(svg);
+                        finish(svg);
+                    } catch (error) {
+                        finish('', error);
+                    }
+                }
+            );
+        });
     }
 
     getSVG(options?: PrintSVGExportOptions) {
-        return new Promise<string>((resolve) => {
-            this.editor.hooksEntity.hookSaveBefore.callAsync('', () => {
-                this.canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-                const { fontOption, svgOption } = this._getSaveSvgOption({
-                    ignoreFont: true,
-                    width: options?.width,
-                    height: options?.height,
-                });
-                fabric.fontPaths = {
-                    ...fontOption,
-                };
-                const svg = this.rotateSVG(
-                    this.canvas.toSVG(svgOption),
-                    options?.rotation
-                );
-                // this._printSvgString(svg);
-                this.editor.hooksEntity.hookSaveAfter.callAsync(svg, () =>
-                    resolve(svg)
-                );
-            });
-        });
+        return this.exportSVG(options).then((result) => result.content);
     }
 
     async getSVGResult(
         options?: PrintSVGExportOptions
     ): Promise<PrintExportResult> {
-        const rotation = this.normalizePrintRotation(options?.rotation);
-        return {
-            content: await this.getSVG({ ...options, rotation }),
-            ...this.getPrintExportSize(rotation),
-            rotation,
-        };
+        return this.exportSVG(options);
     }
 
     preview() {
@@ -511,33 +546,39 @@ class ServersPlugin implements IPluginTempl {
 
     private rotateBase64(dataUrl: string, rotation?: number) {
         const normalizedRotation = this.normalizePrintRotation(rotation);
-        if (!normalizedRotation || typeof Image === 'undefined') {
+        if (!normalizedRotation) {
             return Promise.resolve(dataUrl);
         }
+        if (typeof Image === 'undefined')
+            return Promise.reject(new Error('无法读取导出图片'));
         return new Promise<string>((resolve, reject) => {
             const image = new Image();
             image.onload = () => {
-                const canvas = document.createElement('canvas');
-                const swapSize =
-                    normalizedRotation === 90 || normalizedRotation === 270;
-                canvas.width = swapSize ? image.height : image.width;
-                canvas.height = swapSize ? image.width : image.height;
-                const context = canvas.getContext('2d');
-                if (!context) {
-                    reject(new Error('无法创建旋转画布'));
-                    return;
+                try {
+                    const canvas = document.createElement('canvas');
+                    const swapSize =
+                        normalizedRotation === 90 || normalizedRotation === 270;
+                    canvas.width = swapSize ? image.height : image.width;
+                    canvas.height = swapSize ? image.width : image.height;
+                    const context = canvas.getContext('2d');
+                    if (!context) {
+                        reject(new Error('无法创建旋转画布'));
+                        return;
+                    }
+                    if (normalizedRotation === 90) {
+                        context.translate(canvas.width, 0);
+                    } else if (normalizedRotation === 180) {
+                        context.translate(canvas.width, canvas.height);
+                    } else if (normalizedRotation === 270) {
+                        context.translate(0, canvas.height);
+                    }
+                    context.rotate((normalizedRotation * Math.PI) / 180);
+                    context.drawImage(image, 0, 0);
+                    const mimeType = /^data:([^;,]+)/i.exec(dataUrl)?.[1];
+                    resolve(canvas.toDataURL(mimeType || 'image/jpeg', 1));
+                } catch (error) {
+                    reject(error);
                 }
-                if (normalizedRotation === 90) {
-                    context.translate(canvas.width, 0);
-                } else if (normalizedRotation === 180) {
-                    context.translate(canvas.width, canvas.height);
-                } else if (normalizedRotation === 270) {
-                    context.translate(0, canvas.height);
-                }
-                context.rotate((normalizedRotation * Math.PI) / 180);
-                context.drawImage(image, 0, 0);
-                const mimeType = /^data:([^;,]+)/i.exec(dataUrl)?.[1];
-                resolve(canvas.toDataURL(mimeType || 'image/jpeg', 1));
             };
             image.onerror = () => reject(new Error('无法读取导出图片'));
             image.src = dataUrl;
@@ -546,16 +587,22 @@ class ServersPlugin implements IPluginTempl {
 
     private rotateSVG(svg: string, rotation?: number) {
         const normalizedRotation = this.normalizePrintRotation(rotation);
-        if (!normalizedRotation || typeof DOMParser === 'undefined') return svg;
+        if (!normalizedRotation) return svg;
+        if (typeof DOMParser === 'undefined')
+            throw new Error('无法解析旋转 SVG');
         const document = new DOMParser().parseFromString(svg, 'image/svg+xml');
         const root = document.documentElement;
-        if (!root || root.nodeName === 'parsererror') return svg;
+        if (!root || root.nodeName === 'parsererror')
+            throw new Error('旋转 SVG 内容无效');
         const values = String(root.getAttribute('viewBox') || '')
             .trim()
             .split(/[\s,]+/)
             .map(Number);
-        if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {
-            return svg;
+        if (
+            values.length !== 4 ||
+            values.some((value) => !Number.isFinite(value))
+        ) {
+            throw new Error('旋转 SVG 的 viewBox 无效');
         }
         const [x, y, width, height] = values;
         const originalWidth = root.getAttribute('width');
@@ -565,17 +612,13 @@ class ServersPlugin implements IPluginTempl {
             180: `translate(${width} ${height}) rotate(180) translate(${-x} ${-y})`,
             270: `translate(0 ${width}) rotate(270) translate(${-x} ${-y})`,
         };
-        const transform = transforms[
-            normalizedRotation as Exclude<PrintRotation, 0>
-        ];
+        const transform =
+            transforms[normalizedRotation as Exclude<PrintRotation, 0>];
         const content = document.createElementNS(
             'http://www.w3.org/2000/svg',
             'g'
         );
-        content.setAttribute(
-            'transform',
-            transform
-        );
+        content.setAttribute('transform', transform);
 
         Array.from(root.childNodes).forEach((node) => {
             if (
